@@ -3,8 +3,12 @@ import { compressImage } from "../../utils/imageCompressor";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
-export default function CoverUploadSection({ onCoverChange, onError }) {
-  const [coverPreview, setCoverPreview] = useState(null);
+export default function CoverUploadSection({
+  onCoverChange,
+  onError,
+  initialCover = null,
+}) {
+  const [coverPreview, setCoverPreview] = useState(initialCover);
   const [isCompressing, setIsCompressing] = useState(false);
 
   // ========== 處理封面上傳 ==========

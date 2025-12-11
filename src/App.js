@@ -10,6 +10,8 @@ import ViewsRankingPage from "./pages/ViewsRankingPage";
 import NewRankingPage from "./pages/NewRankingPage";
 import TagsPage from "./pages/TagsPage";
 import UploadPage from "./pages/UploadPage";
+import MyUploadsPage from "./pages/MyUploadsPage";
+import EditUploadPage from "./pages/EditUploadPage";
 
 function App() {
   return (
@@ -43,8 +45,11 @@ function App() {
         {/* 上傳頁 */}
         <Route path="/upload" element={<UploadPage />} />
 
+        {/* 我的上傳管理頁 */}
+        <Route path="/my-uploads" element={<MyUploadsPage />} />
+        <Route path="/my-uploads/edit/:id" element={<EditUploadPage />} />
+
         {/* 其他頁面 (待開發) */}
-        {/* <Route path="/upload" element={<UploadPage />} /> */}
         {/* <Route path="/profile" element={<ProfilePage />} /> */}
         {/* <Route path="/auth" element={<AuthPage />} /> */}
       </Routes>
