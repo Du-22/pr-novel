@@ -28,6 +28,12 @@ PR 小說網是一個全端小說閱讀平台，提供流暢的閱讀體驗、�
 - **排行榜系統** - 人氣榜、收藏榜、新書榜三大榜單
 - **智慧推薦** - 根據標籤相似度推薦相關作品
 
+### 👤 個人中心 ⭐ 新功能！
+
+- **我的收藏** - 收藏管理、一鍵取消、數據同步
+- **我的作品** - 整合上傳管理、編輯刪除功能
+- **閱讀記錄** - 進度追蹤、智慧續讀、視覺化進度條
+
 ### 📝 創作管理
 
 - **一鍵上傳** - 支援 TXT 檔案自動解析章節
@@ -47,7 +53,7 @@ PR 小說網是一個全端小說閱讀平台，提供流暢的閱讀體驗、�
 
 - **React 18** - 使用 Hooks 進行狀態管理
 - **React Router 6** - 單頁應用路由管理
-- **Tailwind CSS** - 快速構建響應式 UI
+- **Tailwind CSS** - 快速構建響應式 UI（紫色系配色）
 
 ### 資料儲存
 
@@ -59,6 +65,7 @@ PR 小說網是一個全端小說閱讀平台，提供流暢的閱讀體驗、�
 - **自製章節解析器** - 支援多種中文數字格式
 - **圖片壓縮工具** - Canvas API 實作封面壓縮
 - **書籤管理系統** - 完整的閱讀進度追蹤
+- **收藏管理系統** - 與統計數據同步
 
 ## 📂 專案結構
 
@@ -72,6 +79,11 @@ pr-novel-web/
 │   │   ├── Navbar.js
 │   │   ├── NovelCard.js
 │   │   ├── RankingCard.js
+│   │   ├── ConfirmDialog.js
+│   │   ├── profile/          # 個人頁元件 ⭐ 新增
+│   │   │   ├── MyFavorites.js
+│   │   │   ├── MyWorks.js
+│   │   │   └── ReadingHistory.js
 │   │   └── upload/           # 上傳相關元件
 │   ├── pages/                # 頁面元件
 │   │   ├── HomePage.js
@@ -79,16 +91,21 @@ pr-novel-web/
 │   │   ├── ReadingPage.js
 │   │   ├── RankingPage.js
 │   │   ├── TagsPage.js
-│   │   └── UploadPage.js
+│   │   ├── UploadPage.js
+│   │   ├── MyUploadsPage.js
+│   │   └── ProfilePage.js    # ⭐ 新增
 │   ├── utils/                # 工具函式
 │   │   ├── parser.js         # 章節解析器
 │   │   ├── bookmarkManager.js
+│   │   ├── readHistoryManager.js
 │   │   ├── statsManager.js
+│   │   ├── favoritesManager.js  # ⭐ 新增
 │   │   ├── imageCompressor.js
 │   │   └── novelsHelper.js
 │   ├── data/
 │   │   └── mockData.js       # 測試資料
 │   └── App.js                # 路由配置
+├── tailwind.config.js        # Tailwind 配置（紫色系）
 ├── .gitignore
 ├── package.json
 └── README.md
@@ -131,7 +148,7 @@ npm run build
 ```css
 主色 (Primary):   #6C5CE7  /* 優雅紫 */
 次色 (Secondary): #A29BFE  /* 淡紫 */
-強調色 (Pink):     #FD79A8  /* 粉紅 */
+強調色 (Accent):   #6C5CE7  /* 紫色（已從粉紅改為紫色）*/
 深色 (Dark):      #2D3436  /* 深灰 */
 淺色 (Light):     #F8F9FA  /* 淺灰白 */
 護眼色:           #FEFDFB  /* 閱讀頁背景 */
@@ -156,21 +173,24 @@ npm run build
 - [x] 排行榜系統（三大榜單）
 - [x] 標籤篩選頁（多選 + AND 邏輯）
 - [x] 上傳頁（TXT 解析 + 封面壓縮）
+- [x] 我的上傳管理
 - [x] 統計數據追蹤
+- [x] **個人頁系統（收藏/作品/閱讀記錄）** ⭐ 最新完成！
 
 ### 開發中功能 🚧
 
-- [ ] 我的上傳管理頁
-- [ ] 個人頁（收藏/作品/閱讀記錄）
-- [ ] 登入/註冊系統
-- [ ] Firebase 雲端同步
+- [ ] Firebase 整合
+  - [ ] Authentication（登入/註冊）
+  - [ ] Firestore（資料庫同步）
+  - [ ] Cloud Storage（檔案上傳）
+  - [ ] 即時同步（跨裝置）
 
 ### 未來規劃 💡
 
 - [ ] 評論系統
 - [ ] 搜尋功能
 - [ ] 閱讀設定面板（字體/配色）
-- [ ] 跨裝置同步
+- [ ] PWA 支援
 
 ## 🔧 核心技術亮點
 
@@ -204,14 +224,20 @@ npm run build
 - 離開頁面時儲存
 - 支援章節 + 頁碼定位
 
+### 5. 收藏系統 ⭐ 新功能
+
+- localStorage 儲存
+- 與統計數據同步
+- 即時更新 UI
+
 ## 📝 開發心得
 
 這是我第一個完整的全端專案，從零開始學習 React 和前端開發。在開發過程中：
 
 1. **學會了 React Hooks** - 深入理解 useState、useEffect 的使用時機
 2. **掌握了路由管理** - React Router 的配置與導航
-3. **實作了複雜邏輯** - 章節解析、書籤系統、標籤篩選
-4. **重視使用者體驗** - 護眼配色、自動分頁、智慧書籤
+3. **實作了複雜邏輯** - 章節解析、書籤系統、標籤篩選、收藏管理
+4. **重視使用者體驗** - 護眼配色、自動分頁、智慧書籤、進度追蹤
 5. **建立了工程思維** - 元件化設計、工具函式抽離、文件撰寫
 
 未來計劃將 localStorage 升級為 Firebase，打造真正的線上平台。
@@ -234,7 +260,3 @@ npm run build
 ---
 
 ⭐ 如果這個專案對你有幫助，歡迎給個 Star！
-
-```
-
-```

@@ -12,6 +12,7 @@ import TagsPage from "./pages/TagsPage";
 import UploadPage from "./pages/UploadPage";
 import MyUploadsPage from "./pages/MyUploadsPage";
 import EditUploadPage from "./pages/EditUploadPage";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
   return (
@@ -48,6 +49,12 @@ function App() {
         {/* 我的上傳管理頁 */}
         <Route path="/my-uploads" element={<MyUploadsPage />} />
         <Route path="/my-uploads/edit/:id" element={<EditUploadPage />} />
+
+        {/* 個人中心頁 */}
+        <Route path="/profile" element={<ProfilePage />} />
+
+        {/* 404頁面 */}
+        <Route path="*" element={<div>頁面不存在</div>} />
 
         {/* 其他頁面 (待開發) */}
         {/* <Route path="/profile" element={<ProfilePage />} /> */}

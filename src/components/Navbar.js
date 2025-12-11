@@ -66,12 +66,12 @@ const Navbar = ({ showBackButton = false }) => {
             >
               上傳
             </Link>
-            {/* TODO: 臨時入口，之後整合進個人中心時會移除 */}
+            {/* 個人中心 */}
             <Link
-              to="/my-uploads"
+              to="/profile"
               className="text-white hover:text-pink transition-colors"
             >
-              管理我的上傳
+              個人中心
             </Link>
           </div>
 

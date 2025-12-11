@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import NovelCard from "../components/NovelCard";
-import { mockNovels } from "../data/mockData";
-import { getNovelById } from "../utils/novelsHelper"; // ← 新增
+import { getAllNovels } from "../utils/novelsHelper";
 import {
   parseNovelChapters,
   getTotalWordCount,
@@ -19,6 +18,11 @@ import {
   incrementFavorites,
   decrementFavorites,
 } from "../utils/statsManager";
+import {
+  isFavorited as checkIsFavorited,
+  addFavorite,
+  removeFavorite,
+} from "../utils/favoritesManager";
 
 export default function NovelDetailPage() {
   const { id } = useParams();
@@ -32,22 +36,25 @@ export default function NovelDetailPage() {
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
 
   useEffect(() => {
-    // 初始化統計數據 (只在第一次執行)
-    initializeStats(mockNovels);
+    loadNovelData();
+  }, [id, navigate]);
 
+  const loadNovelData = () => {
     // 尋找小說 (支援 mockData + 上傳的小說)
-    const foundNovel = getNovelById(id);
+    const allNovels = getAllNovels();
+    const foundNovel = allNovels.find((n) => n.id === id);
+
     if (!foundNovel) {
       navigate("/");
       return;
     }
     setNovel(foundNovel);
 
-    // 載入章節 (根據來源不同處理)
+    // 載入章節
     loadChapters(foundNovel);
 
     // 載入相似推薦 (同標籤的其他小說)
-    loadSimilarNovels(foundNovel);
+    loadSimilarNovels(foundNovel, allNovels);
 
     // 載入書籤 (localStorage)
     const savedBookmark = getBookmark(id);
@@ -58,30 +65,27 @@ export default function NovelDetailPage() {
     const newViews = incrementViews(id);
     setStats({ ...currentStats, views: newViews });
 
-    // 模擬收藏狀態 (之後接 Firebase)
-    setIsFavorited(false);
-  }, [id, navigate]);
+    // 載入收藏狀態
+    const favorited = checkIsFavorited(id);
+    setIsFavorited(favorited);
+  };
 
-  // ========== 載入章節 (支援兩種來源) ==========
+  // ========== 載入章節 ==========
+
   const loadChapters = async (novel) => {
     try {
       setLoading(true);
 
-      // 情況 1: 上傳的小說 (章節已經在 novel.chapters)
-      if (novel.isTemp && novel.chapters) {
+      // 如果是上傳的小說,直接使用 chapters
+      if (novel.chapters) {
         setChapters(novel.chapters);
-        setLoading(false);
-        return;
       }
-
-      // 情況 2: mockData 的小說 (需要載入 TXT 檔案)
-      if (novel.txtFile) {
+      // 如果是 mockData 的小說,從 txtFile 載入
+      else if (novel.txtFile) {
         const response = await fetch(novel.txtFile);
         const txtContent = await response.text();
         const parsedChapters = parseNovelChapters(txtContent);
         setChapters(parsedChapters);
-      } else {
-        setChapters([]);
       }
     } catch (error) {
       console.error("載入章節失敗:", error);
@@ -92,19 +96,19 @@ export default function NovelDetailPage() {
   };
 
   // ========== 載入相似推薦 ==========
-  const loadSimilarNovels = (currentNovel) => {
+
+  const loadSimilarNovels = (currentNovel, allNovels) => {
     // 找出同標籤的小說
     const tag = currentNovel.tags[0]; // 取第一個標籤
-    let similar = getNovelsByTag(mockNovels, tag).filter(
+    let similar = getNovelsByTag(allNovels, tag).filter(
       (n) => n.id !== currentNovel.id
     ); // 排除自己
 
     // 如果不夠 3 本,用其他標籤補
     if (similar.length < 3 && currentNovel.tags.length > 1) {
-      const moreNovels = getNovelsByTag(
-        mockNovels,
-        currentNovel.tags[1]
-      ).filter((n) => n.id !== currentNovel.id && !similar.includes(n));
+      const moreNovels = getNovelsByTag(allNovels, currentNovel.tags[1]).filter(
+        (n) => n.id !== currentNovel.id && !similar.includes(n)
+      );
       similar = [...similar, ...moreNovels];
     }
 
@@ -113,22 +117,25 @@ export default function NovelDetailPage() {
   };
 
   // ========== 切換收藏 ==========
+
   const toggleFavorite = () => {
     if (isFavorited) {
       // 取消收藏
+      removeFavorite(id);
       const newFavorites = decrementFavorites(id);
       setStats((prev) => ({ ...prev, favorites: newFavorites }));
       setIsFavorited(false);
     } else {
       // 加入收藏
+      addFavorite(id);
       const newFavorites = incrementFavorites(id);
       setStats((prev) => ({ ...prev, favorites: newFavorites }));
       setIsFavorited(true);
     }
-    // TODO: 之後接 Firebase 同步
   };
 
   // ========== 開始閱讀/繼續閱讀 ==========
+
   const startReading = () => {
     if (chapters.length === 0) return;
 
@@ -165,6 +172,7 @@ export default function NovelDetailPage() {
   };
 
   // ========== 取得按鈕文字 ==========
+
   const getReadButtonText = () => {
     if (bookmark && bookmark.chapter) {
       // 找到章節標題
@@ -186,6 +194,7 @@ export default function NovelDetailPage() {
   };
 
   // ========== 檢查章節是否已讀 ==========
+
   const isChapterRead = (chapterNumber) => {
     const readChapterNumbers = getReadChapters(id);
     return readChapterNumbers.includes(chapterNumber);
@@ -207,7 +216,8 @@ export default function NovelDetailPage() {
                 src={novel.coverImage}
                 alt={novel.title}
                 onClick={() => window.open(novel.coverImage, "_blank")}
-                className="w-full md:w-64 h-80 object-cover rounded-lg shadow-lg cursor-pointer"
+                className="w-full md:w-64 h-80 object-cover rounded-lg shadow-lg cursor-pointer 
+                         hover:opacity-90 transition-opacity"
               />
             </div>
 
@@ -255,16 +265,6 @@ export default function NovelDetailPage() {
                 </div>
               </div>
 
-              {/* 暫存提示 (只有上傳的小說才顯示) */}
-              {novel.isTemp && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-sm text-yellow-800">
-                    ⚠️ 此小說儲存在本地 (localStorage),未來升級 Firebase
-                    後可永久保存
-                  </p>
-                </div>
-              )}
-
               {/* 操作按鈕 */}
               <div className="flex gap-4">
                 <button
@@ -277,13 +277,14 @@ export default function NovelDetailPage() {
                   {loading ? "載入中..." : getReadButtonText()}
                 </button>
 
+                {/* ⭐ 收藏按鈕 - 使用 Tailwind 紫色系 */}
                 <button
                   onClick={toggleFavorite}
                   className={`px-6 py-3 rounded-lg border-2 transition-colors font-semibold
                     ${
                       isFavorited
-                        ? "bg-pink text-white border-pink"
-                        : "bg-white text-pink border-pink hover:bg-pink/10"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-primary border-primary hover:bg-primary/10"
                     }`}
                 >
                   {isFavorited ? "已收藏" : "加入收藏"}
@@ -327,8 +328,8 @@ export default function NovelDetailPage() {
 
                       {/* 章節標題 */}
                       <span
-                        className={`font-medium group-hover:text-primary transition-colors
-                        ${chapter.isSpecial ? "text-pink" : "text-dark"}`}
+                        className={`font-medium group-hover:text-primary transition-colors break-words
+                        ${chapter.isSpecial ? "text-primary" : "text-dark"}`}
                       >
                         {chapter.title}
                       </span>
