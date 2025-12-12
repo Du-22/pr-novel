@@ -13,6 +13,7 @@ import UploadPage from "./pages/UploadPage";
 import MyUploadsPage from "./pages/MyUploadsPage";
 import EditUploadPage from "./pages/EditUploadPage";
 import ProfilePage from "./pages/ProfilePage";
+import AuthPage from "./pages/AuthPage";
 
 function App() {
   return (
@@ -53,12 +54,11 @@ function App() {
         {/* 個人中心頁 */}
         <Route path="/profile" element={<ProfilePage />} />
 
+        {/* 登入頁 */}
+        <Route path="/auth" element={<AuthPage />} />
+
         {/* 404頁面 */}
         <Route path="*" element={<div>頁面不存在</div>} />
-
-        {/* 其他頁面 (待開發) */}
-        {/* <Route path="/profile" element={<ProfilePage />} /> */}
-        {/* <Route path="/auth" element={<AuthPage />} /> */}
       </Routes>
     </Router>
   );
