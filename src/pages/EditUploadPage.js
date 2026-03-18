@@ -11,6 +11,7 @@ import {
   syncNovelUpdateToFirestore,
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
+import { refreshNovels } from "../utils/novelsHelper";
 
 export default function EditUploadPage() {
   const { id } = useParams();
@@ -82,7 +83,7 @@ export default function EditUploadPage() {
   }, [hasUnsavedChanges]);
 
   // 處理儲存
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
 
     if (!title.trim() || !author.trim() || !summary.trim() || !tags.trim()) {
@@ -110,11 +111,11 @@ export default function EditUploadPage() {
 
     updateUploadedNovel(id, updateData);
 
-    // 背景同步更新 Firestore
     if (firestoreId && user) {
-      syncNovelUpdateToFirestore(firestoreId, updateData, user.uid).catch(
+      await syncNovelUpdateToFirestore(firestoreId, updateData, user.uid).catch(
         (err) => console.error("Firestore 更新失敗:", err)
       );
+      await refreshNovels();
     }
 
     setError("");

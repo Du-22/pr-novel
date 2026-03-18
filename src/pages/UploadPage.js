@@ -10,6 +10,7 @@ import {
   syncUploadToFirestore,
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
+import { refreshNovels } from "../utils/novelsHelper";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
@@ -76,19 +77,20 @@ export default function UploadPage() {
         txtFile: null, // localStorage 版本不存檔案路徑
       };
 
-      // 儲存到 localStorage（立即反應）
+      // 儲存到 localStorage
       const savedNovel = saveUploadedNovel(novelData);
 
-      // 背景同步到 Firestore
+      // 同步到 Firestore 並取得 Firestore ID
+      let targetId = savedNovel.id;
       if (user) {
-        syncUploadToFirestore(savedNovel.id, user.uid).catch((err) =>
-          console.error("背景同步 Firestore 失敗:", err)
-        );
+        const firestoreId = await syncUploadToFirestore(savedNovel.id, user.uid);
+        if (firestoreId) targetId = firestoreId;
+        await refreshNovels();
       }
 
       // 提示並跳轉
       alert("上傳成功！");
-      navigate(`/novel/${savedNovel.id}`);
+      navigate(`/novel/${targetId}`);
     } catch (err) {
       console.error("上傳失敗:", err);
       setError("上傳失敗,請稍後再試");
