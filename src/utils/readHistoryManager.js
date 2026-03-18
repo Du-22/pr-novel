@@ -1,4 +1,57 @@
+// ============================================
+// 檔案名稱: readHistoryManager.js
+// 路徑: src/utils/readHistoryManager.js
+// 用途: 閱讀記錄管理（localStorage + Firestore 雙向同步）
+// ============================================
+import { setDocument, getDocument } from "../firebase/firestore";
+import { auth } from "../firebase/config";
+
 const READ_HISTORY_KEY = "readHistory";
+
+// ========== localStorage 操作 ==========
+
+function getLocalHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(READ_HISTORY_KEY) || "{}");
+  } catch (error) {
+    console.error("讀取本地閱讀記錄失敗:", error);
+    return {};
+  }
+}
+
+function saveLocalHistory(history) {
+  try {
+    localStorage.setItem(READ_HISTORY_KEY, JSON.stringify(history));
+  } catch (error) {
+    console.error("儲存本地閱讀記錄失敗:", error);
+  }
+}
+
+// ========== Firestore 操作 ==========
+
+async function syncReadHistoryToFirestore(novelId, data) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const collectionPath = `readHistory/${user.uid}/novels`;
+  await setDocument(collectionPath, novelId, data);
+}
+
+async function getFirestoreReadHistory(novelId) {
+  const user = auth.currentUser;
+  if (!user) return null;
+
+  const collectionPath = `readHistory/${user.uid}/novels`;
+  const doc = await getDocument(collectionPath, novelId);
+  if (!doc) return null;
+
+  return {
+    readChapters: doc.readChapters || [],
+    lastRead: doc.lastRead || null,
+  };
+}
+
+// ========== 公開 API ==========
 
 /**
  * 取得小說的已讀章節列表
@@ -7,7 +60,7 @@ const READ_HISTORY_KEY = "readHistory";
  */
 export function getReadChapters(novelId) {
   try {
-    const history = JSON.parse(localStorage.getItem(READ_HISTORY_KEY) || "{}");
+    const history = getLocalHistory();
     return history[novelId]?.readChapters || [];
   } catch (error) {
     console.error("讀取已讀記錄失敗:", error);
@@ -16,33 +69,38 @@ export function getReadChapters(novelId) {
 }
 
 /**
- * 標記章節為已讀
+ * 標記章節為已讀（立即存 localStorage，背景同步 Firestore）
  * @param {string} novelId - 小說 ID
  * @param {number} chapterNumber - 章節編號
  */
 export function markChapterAsRead(novelId, chapterNumber) {
   try {
-    const history = JSON.parse(localStorage.getItem(READ_HISTORY_KEY) || "{}");
+    const history = getLocalHistory();
 
     if (!history[novelId]) {
       history[novelId] = {
         readChapters: [],
         lastRead: null,
-        totalTime: 0,
       };
     }
 
-    // 加入已讀章節 (避免重複)
+    // 加入已讀章節（避免重複）
     if (!history[novelId].readChapters.includes(chapterNumber)) {
       history[novelId].readChapters.push(chapterNumber);
-      history[novelId].readChapters.sort((a, b) => a - b); // 排序
+      history[novelId].readChapters.sort((a, b) => a - b);
     }
 
-    // 更新最後閱讀時間
     history[novelId].lastRead = new Date().toISOString();
-
-    localStorage.setItem(READ_HISTORY_KEY, JSON.stringify(history));
+    saveLocalHistory(history);
     console.log(`✅ 標記為已讀: ${novelId} - 第${chapterNumber}章`);
+
+    // 背景同步到 Firestore
+    const user = auth.currentUser;
+    if (user) {
+      syncReadHistoryToFirestore(novelId, history[novelId]).catch((err) => {
+        console.error("閱讀記錄同步 Firestore 失敗:", err);
+      });
+    }
   } catch (error) {
     console.error("標記已讀失敗:", error);
   }
@@ -77,9 +135,9 @@ export function getReadingProgress(novelId, totalChapters) {
  */
 export function clearReadHistory(novelId) {
   try {
-    const history = JSON.parse(localStorage.getItem(READ_HISTORY_KEY) || "{}");
+    const history = getLocalHistory();
     delete history[novelId];
-    localStorage.setItem(READ_HISTORY_KEY, JSON.stringify(history));
+    saveLocalHistory(history);
     console.log(`🗑️ 閱讀記錄已清除: ${novelId}`);
   } catch (error) {
     console.error("清除閱讀記錄失敗:", error);
@@ -92,9 +150,58 @@ export function clearReadHistory(novelId) {
  */
 export function getAllReadHistory() {
   try {
-    return JSON.parse(localStorage.getItem(READ_HISTORY_KEY) || "{}");
+    return getLocalHistory();
   } catch (error) {
     console.error("讀取所有閱讀記錄失敗:", error);
     return {};
+  }
+}
+
+/**
+ * 登入後同步：將 Firestore 閱讀記錄合併進 localStorage（取章節聯集）
+ */
+export async function syncReadHistory() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  console.log("🔄 開始同步閱讀記錄...");
+
+  try {
+    const localHistory = getLocalHistory();
+    const novelIds = Object.keys(localHistory);
+
+    const firestorePromises = novelIds.map((id) =>
+      getFirestoreReadHistory(id).then((data) => ({ id, data }))
+    );
+    const firestoreResults = await Promise.all(firestorePromises);
+
+    // 合併：取章節聯集，lastRead 取較新的
+    firestoreResults.forEach(({ id, data }) => {
+      if (!data) return;
+      const local = localHistory[id];
+      const mergedChapters = Array.from(
+        new Set([...(local?.readChapters || []), ...data.readChapters])
+      ).sort((a, b) => a - b);
+
+      const localTime = local?.lastRead ? new Date(local.lastRead) : new Date(0);
+      const remoteTime = data.lastRead ? new Date(data.lastRead) : new Date(0);
+
+      localHistory[id] = {
+        readChapters: mergedChapters,
+        lastRead: (localTime > remoteTime ? local.lastRead : data.lastRead),
+      };
+    });
+
+    saveLocalHistory(localHistory);
+
+    // 上傳 localStorage 有但 Firestore 沒有的
+    const uploadPromises = firestoreResults
+      .filter(({ data }) => !data)
+      .map(({ id }) => syncReadHistoryToFirestore(id, localHistory[id]));
+    await Promise.all(uploadPromises);
+
+    console.log("✅ 閱讀記錄同步完成");
+  } catch (error) {
+    console.error("❌ 閱讀記錄同步失敗:", error);
   }
 }
