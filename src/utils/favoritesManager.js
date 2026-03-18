@@ -184,46 +184,11 @@ async function syncDifferencesToFirestore(mergedFavorites, firestoreFavorites) {
 // ========== 公開 API ==========
 
 /**
- * 取得使用者的收藏列表（自動同步）
+ * 取得使用者的收藏列表（只讀 localStorage，完整同步僅在登入時透過 syncFavorites() 執行）
  * @returns {Promise<Array>} - 收藏的小說陣列
  */
 export async function getFavorites() {
-  const user = auth.currentUser;
-
-  // 未登入：只用 localStorage
-  if (!user) {
-    return getLocalFavorites();
-  }
-
-  // 已登入：合併 localStorage + Firestore
-  try {
-    syncStatus.isSyncing = true;
-    syncStatus.error = null;
-
-    const localFavorites = getLocalFavorites();
-    const firestoreFavorites = await getFirestoreFavorites();
-
-    // 合併策略：聯集
-    const mergedFavorites = mergeFavorites(localFavorites, firestoreFavorites);
-
-    // 同步差異到 Firestore
-    await syncDifferencesToFirestore(mergedFavorites, firestoreFavorites);
-
-    // 更新 localStorage
-    saveLocalFavorites(mergedFavorites);
-
-    syncStatus.isSyncing = false;
-    syncStatus.lastSyncTime = new Date().toISOString();
-
-    return mergedFavorites;
-  } catch (error) {
-    console.error("❌ 同步收藏失敗，使用本地資料:", error);
-    syncStatus.isSyncing = false;
-    syncStatus.error = error.message;
-
-    // 失敗時回傳 localStorage 資料（不影響使用者體驗）
-    return getLocalFavorites();
-  }
+  return getLocalFavorites();
 }
 
 /**
@@ -358,7 +323,27 @@ export async function clearAllFavorites() {
  * @returns {Promise<void>}
  */
 export async function syncFavorites() {
+  const user = auth.currentUser;
+  if (!user) return;
+
   console.log("🔄 開始同步收藏...");
-  await getFavorites(); // 會自動執行完整同步邏輯
-  console.log("✅ 收藏同步完成");
+  syncStatus.isSyncing = true;
+  syncStatus.error = null;
+
+  try {
+    const localFavorites = getLocalFavorites();
+    const firestoreFavorites = await getFirestoreFavorites();
+
+    const mergedFavorites = mergeFavorites(localFavorites, firestoreFavorites);
+    await syncDifferencesToFirestore(mergedFavorites, firestoreFavorites);
+    saveLocalFavorites(mergedFavorites);
+
+    syncStatus.isSyncing = false;
+    syncStatus.lastSyncTime = new Date().toISOString();
+    console.log("✅ 收藏同步完成");
+  } catch (error) {
+    console.error("❌ 同步收藏失敗:", error);
+    syncStatus.isSyncing = false;
+    syncStatus.error = error.message;
+  }
 }
