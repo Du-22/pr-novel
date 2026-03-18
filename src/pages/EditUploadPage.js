@@ -8,11 +8,14 @@ import EditNotice from "../components/upload/EditNotice";
 import {
   getUploadedNovelById,
   updateUploadedNovel,
+  syncNovelUpdateToFirestore,
 } from "../utils/uploadedNovelsManager";
+import { useAuth } from "../hooks/useAuth";
 
 export default function EditUploadPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // 表單狀態
   const [title, setTitle] = useState("");
@@ -21,6 +24,7 @@ export default function EditUploadPage() {
   const [tags, setTags] = useState("");
   const [coverImage, setCoverImage] = useState("");
   const [chapters, setChapters] = useState([]);
+  const [firestoreId, setFirestoreId] = useState(null);
 
   // UI 狀態
   const [loading, setLoading] = useState(true);
@@ -45,6 +49,7 @@ export default function EditUploadPage() {
     setTags(tagsString);
     setCoverImage(novel.coverImage);
     setChapters(novel.chapters || []);
+    setFirestoreId(novel.firestoreId || null);
     setOriginalData({ ...novel, tags: tagsString });
     setLoading(false);
   }, [id, navigate]);
@@ -95,13 +100,22 @@ export default function EditUploadPage() {
       return;
     }
 
-    updateUploadedNovel(id, {
+    const updateData = {
       title: title.trim(),
       author: author.trim(),
       summary: summary.trim(),
       tags: tagsArray,
       coverImage: coverImage,
-    });
+    };
+
+    updateUploadedNovel(id, updateData);
+
+    // 背景同步更新 Firestore
+    if (firestoreId && user) {
+      syncNovelUpdateToFirestore(firestoreId, updateData, user.uid).catch(
+        (err) => console.error("Firestore 更新失敗:", err)
+      );
+    }
 
     setError("");
     setHasUnsavedChanges(false);

@@ -1,6 +1,10 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/config";
+import { syncFavorites } from "../utils/favoritesManager";
+import { syncBookmarks } from "../utils/bookmarkManager";
+import { syncReadHistory } from "../utils/readHistoryManager";
+import { syncNovelsFromFirestore } from "../utils/uploadedNovelsManager";
 
 /**
  * 登入狀態管理 Hook
@@ -25,6 +29,11 @@ export function useAuth() {
           // 使用者已登入
           console.log("✅ 使用者已登入:", currentUser.email);
           setUser(currentUser);
+          // 登入後自動同步收藏、書籤、閱讀記錄、小說列表
+          syncFavorites().catch((err) => console.error("登入後同步收藏失敗:", err));
+          syncBookmarks().catch((err) => console.error("登入後同步書籤失敗:", err));
+          syncReadHistory().catch((err) => console.error("登入後同步閱讀記錄失敗:", err));
+          syncNovelsFromFirestore(currentUser.uid).catch((err) => console.error("登入後同步小說列表失敗:", err));
         } else {
           // 使用者未登入
           console.log("❌ 使用者未登入");

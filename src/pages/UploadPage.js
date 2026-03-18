@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import TxtUploadSection from "../components/upload/TxtUploadSection";
 import CoverUploadSection from "../components/upload/CoverUploadSection";
@@ -7,12 +7,15 @@ import BasicInfoForm from "../components/upload/BasicInfoForm";
 import {
   saveUploadedNovel,
   getStorageUsage,
+  syncUploadToFirestore,
 } from "../utils/uploadedNovelsManager";
+import { useAuth } from "../hooks/useAuth";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
 export default function UploadPage() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
 
   // 表單狀態
   const [title, setTitle] = useState("");
@@ -73,11 +76,18 @@ export default function UploadPage() {
         txtFile: null, // localStorage 版本不存檔案路徑
       };
 
-      // 儲存到 localStorage
+      // 儲存到 localStorage（立即反應）
       const savedNovel = saveUploadedNovel(novelData);
 
+      // 背景同步到 Firestore
+      if (user) {
+        syncUploadToFirestore(savedNovel.id, user.uid).catch((err) =>
+          console.error("背景同步 Firestore 失敗:", err)
+        );
+      }
+
       // 提示並跳轉
-      alert("上傳成功!已儲存到本地 (重新整理不會消失)");
+      alert("上傳成功！");
       navigate(`/novel/${savedNovel.id}`);
     } catch (err) {
       console.error("上傳失敗:", err);
@@ -86,6 +96,27 @@ export default function UploadPage() {
       setIsSubmitting(false);
     }
   };
+
+  // 未登入時顯示提示
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-light">
+        <Navbar showBackButton={true} />
+        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold text-dark mb-4">需要登入才能上傳</h1>
+          <p className="text-gray-600 mb-6">
+            登入後才能上傳小說，並支援跨裝置同步。
+          </p>
+          <Link
+            to="/auth"
+            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+          >
+            前往登入
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-light">
@@ -96,10 +127,10 @@ export default function UploadPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-dark mb-2">上傳小說</h1>
           <p className="text-gray-600">
-            目前使用 localStorage 儲存 (約可存 10-15 本小說)
+            上傳後會自動同步至雲端，支援跨裝置閱覽
           </p>
           <div className="mt-2 text-sm text-gray-500">
-            已使用: {storageInfo.used}MB / {storageInfo.limit}MB (
+            本地暫存已使用: {storageInfo.used}MB / {storageInfo.limit}MB (
             {storageInfo.percentage}%)
           </div>
         </div>
@@ -159,12 +190,11 @@ export default function UploadPage() {
 
         {/* 說明文字 */}
         <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-semibold text-blue-800 mb-2">💡 使用說明</h3>
+          <h3 className="font-semibold text-blue-800 mb-2">使用說明</h3>
           <ul className="text-sm text-blue-700 space-y-1">
-            <li>• 目前使用 localStorage 儲存,重新整理不會消失</li>
-            <li>• 大約可儲存 10-15 本小說 (視檔案大小而定)</li>
-            <li>• TXT 檔案格式請參考範例小說</li>
-            <li>• 未來升級 Firebase 後可無限儲存並跨裝置同步</li>
+            <li>• 上傳後資料會存在本地並自動同步至 Firebase 雲端</li>
+            <li>• 登入同一帳號可在不同裝置看到你的作品</li>
+            <li>• TXT 檔案請使用「第X章 章節名稱」格式分章</li>
           </ul>
         </div>
       </div>

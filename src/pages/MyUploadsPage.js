@@ -5,10 +5,13 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import {
   getUploadedNovels,
   deleteUploadedNovel,
+  syncNovelDeleteFromFirestore,
 } from "../utils/uploadedNovelsManager";
+import { useAuth } from "../hooks/useAuth";
 
 export default function MyUploadsPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [novels, setNovels] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
   const [novelToDelete, setNovelToDelete] = useState(null);
@@ -33,6 +36,14 @@ export default function MyUploadsPage() {
     if (novelToDelete) {
       deleteUploadedNovel(novelToDelete.id);
       setNovels(novels.filter((n) => n.id !== novelToDelete.id));
+
+      // 背景同步刪除 Firestore
+      if (novelToDelete.firestoreId && user) {
+        syncNovelDeleteFromFirestore(novelToDelete.firestoreId, user.uid).catch(
+          (err) => console.error("Firestore 刪除失敗:", err)
+        );
+      }
+
       setShowDialog(false);
       setNovelToDelete(null);
     }
