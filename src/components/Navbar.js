@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { logout } from "../firebase/auth";
@@ -7,6 +7,24 @@ const Navbar = ({ showBackButton = false }) => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef(null);
+
+  // 展開搜尋列時自動 focus
+  useEffect(() => {
+    if (showSearch) {
+      searchInputRef.current?.focus();
+    }
+  }, [showSearch]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    setShowSearch(false);
+    setSearchQuery("");
+  };
 
   // ========== 處理登出 ==========
   const handleLogout = async () => {
@@ -93,23 +111,49 @@ const Navbar = ({ showBackButton = false }) => {
 
           {/* 右側按鈕 */}
           <div className="flex items-center space-x-4">
-            {/* 搜尋按鈕 */}
-            <button className="text-white hover:text-pink transition-colors">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            {/* 搜尋區 */}
+            {showSearch ? (
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜尋標題、作者、標籤..."
+                  className="w-48 md:w-64 px-3 py-1.5 rounded-lg text-dark text-sm
+                           focus:outline-none focus:ring-2 focus:ring-white/50"
+                  onKeyDown={(e) => e.key === "Escape" && setShowSearch(false)}
                 />
-              </svg>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowSearch(false); setSearchQuery(""); }}
+                  className="text-white hover:text-white/70 transition-colors"
+                >
+                  ✕
+                </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => setShowSearch(true)}
+                className="text-white hover:text-pink transition-colors"
+                aria-label="搜尋"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </button>
+            )}
 
             {/* 使用者選單 */}
             {loading ? (
