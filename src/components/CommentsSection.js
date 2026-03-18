@@ -57,11 +57,22 @@ function FloorBadge({ floor }) {
   );
 }
 
-export default function CommentsSection({ novelId, chapterNumber = null }) {
+const TOP_LEVEL_LIMIT = 10; // 預設顯示第一層留言數
+const REPLY_LIMIT = 2; // 預設顯示回覆數
+
+export default function CommentsSection({
+  novelId,
+  chapterNumber = null,
+  chapters = [],
+}) {
   const { user } = useAuth();
   const [topLevelComments, setTopLevelComments] = useState([]);
   const [replyMap, setReplyMap] = useState({});
   const [loading, setLoading] = useState(true);
+
+  // 折疊狀態
+  const [showAllTopLevel, setShowAllTopLevel] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState({}); // { commentId: true }
 
   // 第一層留言輸入
   const [content, setContent] = useState("");
@@ -77,6 +88,15 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
   // 排序：'time' | 'likes'
   const [sortBy, setSortBy] = useState("likes");
 
+  // chapterNumber → title 對照表
+  const chapterTitleMap = useMemo(() => {
+    const map = {};
+    chapters.forEach((c) => {
+      map[c.chapterNumber] = c.title;
+    });
+    return map;
+  }, [chapters]);
+
   const counterDocRef = doc(db, "comments", novelId);
   const itemsCol = `comments/${novelId}/items`;
 
@@ -88,8 +108,16 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
       const snapshot = await getDocs(q);
       const all = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      const topLevel = all.filter((c) => !c.parentId);
-      const replies = all.filter((c) => c.parentId);
+      // 閱讀頁：只顯示該章節留言；小說資訊頁：顯示全部
+      const topLevel = all.filter(
+        (c) =>
+          !c.parentId &&
+          (chapterNumber === null ? true : c.chapterNumber === chapterNumber),
+      );
+      const topLevelIds = new Set(topLevel.map((c) => c.id));
+      const replies = all.filter(
+        (c) => c.parentId && topLevelIds.has(c.parentId),
+      );
 
       const map = {};
       replies.forEach((r) => {
@@ -173,8 +201,14 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
 
     if (!firstLevel) return;
     setReplyingTo(firstLevel);
-    setReplyContent(`@B${mentionFloor} `);
-    setTimeout(() => replyTextareaRef.current?.focus(), 50);
+    const prefix = `@B${mentionFloor} `;
+    setReplyContent(prefix);
+    setTimeout(() => {
+      const el = replyTextareaRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(prefix.length, prefix.length);
+    }, 50);
   };
 
   // ========== 送出回覆 ==========
@@ -279,12 +313,17 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
 
   // ========== 排序 ==========
   const sortedTopLevel = useMemo(() => {
+    const toDate = (ts) => ts?.toDate ? ts.toDate() : new Date(ts);
     if (sortBy === "likes") {
       return [...topLevelComments].sort(
         (a, b) => (b.likedBy?.length || 0) - (a.likedBy?.length || 0),
       );
     }
-    return topLevelComments; // 預設已按 createdAt asc 排序
+    if (sortBy === "oldest") {
+      return [...topLevelComments].sort((a, b) => toDate(a.createdAt) - toDate(b.createdAt));
+    }
+    // 最新在前（createdAt desc）
+    return [...topLevelComments].sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt));
   }, [topLevelComments, sortBy]);
 
   const totalCount =
@@ -302,7 +341,7 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
             </span>
           )}
         </h2>
-        {topLevelComments.length > 1 && (
+        {topLevelComments.length > 0 && (
           <div className="flex items-center gap-1 text-sm">
             <button
               onClick={() => setSortBy("likes")}
@@ -313,6 +352,16 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
               }`}
             >
               熱門
+            </button>
+            <button
+              onClick={() => setSortBy("oldest")}
+              className={`px-3 py-1 rounded-full transition-colors ${
+                sortBy === "oldest"
+                  ? "bg-primary text-white"
+                  : "text-gray-500 hover:text-primary"
+              }`}
+            >
+              按時間
             </button>
             <button
               onClick={() => setSortBy("time")}
@@ -390,9 +439,17 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
         </p>
       ) : (
         <div className="space-y-6">
-          {sortedTopLevel.map((comment) => {
+          {(showAllTopLevel
+            ? sortedTopLevel
+            : sortedTopLevel.slice(0, TOP_LEVEL_LIMIT)
+          ).map((comment) => {
             const replies = replyMap[comment.id] || [];
             const isReplyingHere = replyingTo?.id === comment.id;
+            const isRepliesExpanded = expandedReplies[comment.id];
+            const visibleReplies = isRepliesExpanded
+              ? replies
+              : replies.slice(0, REPLY_LIMIT);
+            const hiddenReplyCount = replies.length - REPLY_LIMIT;
 
             return (
               <div key={comment.id}>
@@ -406,9 +463,17 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
                         <span className="font-medium text-dark text-sm">
                           {comment.authorName}
                         </span>
-                        {comment.chapterNumber && (
-                          <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                            第{comment.chapterNumber}章
+                        {chapterNumber === null && (
+                          <span
+                            className={`text-xs px-1.5 py-0.5 rounded ${
+                              comment.chapterNumber
+                                ? "text-primary bg-primary/10"
+                                : "text-gray-400 bg-gray-100"
+                            }`}
+                          >
+                            {comment.chapterNumber
+                              ? `於 ${chapterTitleMap[comment.chapterNumber] || `第${comment.chapterNumber}章`} 留言`
+                              : "於 目錄頁 留言"}
                           </span>
                         )}
                         <span className="text-xs text-gray-400">
@@ -461,7 +526,7 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
                 {/* ---- 回覆列表 ---- */}
                 {replies.length > 0 && (
                   <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
-                    {replies.map((reply) => (
+                    {visibleReplies.map((reply) => (
                       <div key={reply.id} className="flex gap-3">
                         <Avatar name={reply.authorName} size="w-7 h-7" />
                         <div className="flex-1">
@@ -518,6 +583,33 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
                         </div>
                       </div>
                     ))}
+                    {/* 展開更多回覆 */}
+                    {!isRepliesExpanded && hiddenReplyCount > 0 && (
+                      <button
+                        onClick={() =>
+                          setExpandedReplies((prev) => ({
+                            ...prev,
+                            [comment.id]: true,
+                          }))
+                        }
+                        className="text-xs text-primary hover:text-primary/80 transition-colors"
+                      >
+                        展開 {hiddenReplyCount} 則回覆
+                      </button>
+                    )}
+                    {isRepliesExpanded && replies.length > REPLY_LIMIT && (
+                      <button
+                        onClick={() =>
+                          setExpandedReplies((prev) => ({
+                            ...prev,
+                            [comment.id]: false,
+                          }))
+                        }
+                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        收起回覆
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -568,6 +660,23 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
               </div>
             );
           })}
+          {/* 展開更多第一層留言 */}
+          {!showAllTopLevel && sortedTopLevel.length > TOP_LEVEL_LIMIT && (
+            <button
+              onClick={() => setShowAllTopLevel(true)}
+              className="w-full py-2 text-sm text-primary hover:text-primary/80 transition-colors border border-primary/30 rounded-lg"
+            >
+              展開全部留言（還有 {sortedTopLevel.length - TOP_LEVEL_LIMIT} 則）
+            </button>
+          )}
+          {showAllTopLevel && sortedTopLevel.length > TOP_LEVEL_LIMIT && (
+            <button
+              onClick={() => setShowAllTopLevel(false)}
+              className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors border border-gray-200 rounded-lg"
+            >
+              收起留言
+            </button>
+          )}
         </div>
       )}
     </div>

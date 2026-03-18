@@ -5,6 +5,7 @@ import { getNovelById } from "../utils/novelsHelper";
 import { parseNovelChapters } from "../utils/parser";
 import { saveBookmark, getBookmark } from "../utils/bookmarkManager";
 import { markChapterAsRead } from "../utils/readHistoryManager";
+import CommentsSection from "../components/CommentsSection";
 
 const CHARS_PER_PAGE = 3000; // 每頁字數上限
 
@@ -308,8 +309,10 @@ function ReadingPage() {
         </div>
       </div>
 
-      {/* 底部間距 */}
-      <div className="h-16"></div>
+      {/* 章節留言區 */}
+      <div className="max-w-[800px] mx-auto px-4 pb-16">
+        <CommentsSection novelId={id} chapterNumber={chapterNumber} chapters={chapters} />
+      </div>
     </div>
   );
 }
