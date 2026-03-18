@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getSyncStatus } from "../utils/favoritesManager";
 
 export default function SyncIndicator() {
@@ -9,6 +9,8 @@ export default function SyncIndicator() {
   });
 
   const [show, setShow] = useState(false);
+  // 記錄已顯示過的 lastSyncTime，避免重複觸發
+  const shownSyncTimeRef = useRef(null);
 
   // 每秒檢查同步狀態
   useEffect(() => {
@@ -16,11 +18,14 @@ export default function SyncIndicator() {
       const status = getSyncStatus();
       setSyncStatus(status);
 
-      // 同步中或有錯誤時顯示
       if (status.isSyncing || status.error) {
         setShow(true);
-      } else if (status.lastSyncTime) {
-        // 同步完成後顯示 2 秒
+      } else if (
+        status.lastSyncTime &&
+        status.lastSyncTime !== shownSyncTimeRef.current
+      ) {
+        // 只有新的 lastSyncTime 才觸發，避免重複顯示
+        shownSyncTimeRef.current = status.lastSyncTime;
         setShow(true);
         setTimeout(() => setShow(false), 2000);
       }

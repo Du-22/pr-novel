@@ -23,6 +23,7 @@ import {
   addFavorite,
   removeFavorite,
 } from "../utils/favoritesManager";
+import CommentsSection from "../components/CommentsSection";
 
 export default function NovelDetailPage() {
   const { id } = useParams();
@@ -359,10 +360,7 @@ export default function NovelDetailPage() {
         )}
 
         {/* ========== 讀者評論區 ========== */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-bold text-dark mb-4">讀者評論</h2>
-          <p className="text-gray-500 text-center py-8">評論功能開發中...</p>
-        </div>
+        <CommentsSection novelId={id} />
       </div>
     </div>
   );
