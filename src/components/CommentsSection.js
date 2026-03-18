@@ -3,7 +3,7 @@
 // 路徑: src/components/CommentsSection.js
 // 用途: 讀者評論區（樓層編號、巢狀回覆、@mention）
 // ============================================
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -12,7 +12,10 @@ import {
   getDocs,
   setDoc,
   deleteDoc,
+  updateDoc,
   runTransaction,
+  arrayUnion,
+  arrayRemove,
   query,
   orderBy,
 } from "firebase/firestore";
@@ -29,9 +32,16 @@ function formatDate(timestamp) {
   return `${y}/${m}/${d}`;
 }
 
-function Avatar({ name, size = "w-9 h-9", bg = "bg-secondary/40", textColor = "text-primary" }) {
+function Avatar({
+  name,
+  size = "w-9 h-9",
+  bg = "bg-secondary/40",
+  textColor = "text-primary",
+}) {
   return (
-    <div className={`flex-shrink-0 ${size} rounded-full ${bg} flex items-center justify-center`}>
+    <div
+      className={`flex-shrink-0 ${size} rounded-full ${bg} flex items-center justify-center`}
+    >
       <span className={`${textColor} font-semibold text-sm`}>
         {name?.charAt(0).toUpperCase() || "?"}
       </span>
@@ -63,6 +73,9 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
   const [replyContent, setReplyContent] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
   const replyTextareaRef = useRef(null);
+
+  // 排序：'time' | 'likes'
+  const [sortBy, setSortBy] = useState("likes");
 
   const counterDocRef = doc(db, "comments", novelId);
   const itemsCol = `comments/${novelId}/items`;
@@ -114,7 +127,11 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
           ? counterSnap.data().topLevelCount || 0
           : 0;
         const next = current + 1;
-        transaction.set(counterDocRef, { topLevelCount: next }, { merge: true });
+        transaction.set(
+          counterDocRef,
+          { topLevelCount: next },
+          { merge: true },
+        );
         return next;
       });
 
@@ -123,7 +140,7 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
         content: content.trim(),
         authorUid: user.uid,
         authorName: user.displayName || user.email.split("@")[0],
-        floorNumber,       // number: 1, 2, 3...
+        floorNumber, // number: 1, 2, 3...
         parentId: null,
         replyCount: 0,
         chapterNumber: chapterNumber ?? null,
@@ -188,9 +205,9 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
         content: replyContent.trim(),
         authorUid: user.uid,
         authorName: user.displayName || user.email.split("@")[0],
-        floorNumber: replyFloor,  // string: "3-6"
+        floorNumber: replyFloor, // string: "3-6"
         parentId: replyingTo.id,
-        parentFloor,              // number: 3
+        parentFloor, // number: 3
         chapterNumber: chapterNumber ?? null,
         createdAt: new Date(),
       });
@@ -217,20 +234,99 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
     }
   };
 
+  // ========== 按讚 ==========
+  const handleLike = async (comment) => {
+    if (!user) return;
+
+    const isReply = !!comment.parentId;
+    const likedBy = comment.likedBy || [];
+    const alreadyLiked = likedBy.includes(user.uid);
+
+    // 樂觀更新
+    const updateLocal = (list) =>
+      list.map((c) => {
+        if (c.id !== comment.id) return c;
+        const newLikedBy = alreadyLiked
+          ? likedBy.filter((uid) => uid !== user.uid)
+          : [...likedBy, user.uid];
+        return { ...c, likedBy: newLikedBy, likes: newLikedBy.length };
+      });
+
+    if (isReply) {
+      setReplyMap((prev) => {
+        const updated = { ...prev };
+        if (updated[comment.parentId]) {
+          updated[comment.parentId] = updateLocal(updated[comment.parentId]);
+        }
+        return updated;
+      });
+    } else {
+      setTopLevelComments((prev) => updateLocal(prev));
+    }
+
+    // 背景同步 Firestore
+    try {
+      const ref = doc(db, itemsCol, comment.id);
+      await updateDoc(ref, {
+        likedBy: alreadyLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
+      });
+    } catch (err) {
+      console.error("按讚失敗:", err);
+      // 失敗時回滾（重新載入）
+      await loadComments();
+    }
+  };
+
+  // ========== 排序 ==========
+  const sortedTopLevel = useMemo(() => {
+    if (sortBy === "likes") {
+      return [...topLevelComments].sort(
+        (a, b) => (b.likedBy?.length || 0) - (a.likedBy?.length || 0),
+      );
+    }
+    return topLevelComments; // 預設已按 createdAt asc 排序
+  }, [topLevelComments, sortBy]);
+
   const totalCount =
     topLevelComments.length +
     Object.values(replyMap).reduce((sum, arr) => sum + arr.length, 0);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-2xl font-bold text-dark mb-6">
-        讀者留言
-        {totalCount > 0 && (
-          <span className="ml-2 text-lg font-normal text-gray-500">
-            ({totalCount})
-          </span>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-dark">
+          讀者留言
+          {totalCount > 0 && (
+            <span className="ml-2 text-lg font-normal text-gray-500">
+              ({totalCount})
+            </span>
+          )}
+        </h2>
+        {topLevelComments.length > 1 && (
+          <div className="flex items-center gap-1 text-sm">
+            <button
+              onClick={() => setSortBy("likes")}
+              className={`px-3 py-1 rounded-full transition-colors ${
+                sortBy === "likes"
+                  ? "bg-primary text-white"
+                  : "text-gray-500 hover:text-primary"
+              }`}
+            >
+              熱門
+            </button>
+            <button
+              onClick={() => setSortBy("time")}
+              className={`px-3 py-1 rounded-full transition-colors ${
+                sortBy === "time"
+                  ? "bg-primary text-white"
+                  : "text-gray-500 hover:text-primary"
+              }`}
+            >
+              最新
+            </button>
+          </div>
         )}
-      </h2>
+      </div>
 
       {/* ========== 第一層留言輸入區 ========== */}
       {user ? (
@@ -294,10 +390,9 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
         </p>
       ) : (
         <div className="space-y-6">
-          {topLevelComments.map((comment) => {
+          {sortedTopLevel.map((comment) => {
             const replies = replyMap[comment.id] || [];
-            const isReplyingHere =
-              replyingTo?.id === comment.id;
+            const isReplyingHere = replyingTo?.id === comment.id;
 
             return (
               <div key={comment.id}>
@@ -321,6 +416,24 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
                         </span>
                       </div>
                       <div className="flex items-center gap-3">
+                        {/* 按讚 */}
+                        <button
+                          onClick={() => handleLike(comment)}
+                          className={`flex items-center gap-1 text-xs transition-colors ${
+                            user && comment.likedBy?.includes(user.uid)
+                              ? "text-primary font-medium"
+                              : "text-gray-400 hover:text-primary"
+                          }`}
+                        >
+                          <span>
+                            {user && comment.likedBy?.includes(user.uid)
+                              ? "♥"
+                              : "♡"}
+                          </span>
+                          {comment.likedBy?.length > 0 && (
+                            <span>{comment.likedBy.length}</span>
+                          )}
+                        </button>
                         {user && (
                           <button
                             onClick={() => handleReplyClick(comment)}
@@ -363,6 +476,24 @@ export default function CommentsSection({ novelId, chapterNumber = null }) {
                               </span>
                             </div>
                             <div className="flex items-center gap-3">
+                              {/* 按讚 */}
+                              <button
+                                onClick={() => handleLike(reply)}
+                                className={`flex items-center gap-1 text-xs transition-colors ${
+                                  user && reply.likedBy?.includes(user.uid)
+                                    ? "text-primary font-medium"
+                                    : "text-gray-400 hover:text-primary"
+                                }`}
+                              >
+                                <span>
+                                  {user && reply.likedBy?.includes(user.uid)
+                                    ? "♥"
+                                    : "♡"}
+                                </span>
+                                {reply.likedBy?.length > 0 && (
+                                  <span>{reply.likedBy.length}</span>
+                                )}
+                              </button>
                               {user && (
                                 <button
                                   onClick={() => handleReplyClick(reply)}
