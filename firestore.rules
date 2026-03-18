@@ -1,0 +1,83 @@
+// ============================================
+// Firestore Security Rules
+// 用途: 管控所有 Collection 的讀寫權限
+// 更新日期: 2026-03-19
+// ============================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ========== 輔助函式 ==========
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+
+    // ========== 收藏 (favorites) ==========
+    match /favorites/{userId}/novels/{novelId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+
+    // ========== 書籤 (bookmarks) ==========
+    match /bookmarks/{userId}/novels/{novelId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+
+    // ========== 閱讀記錄 (readHistory) ==========
+    match /readHistory/{userId}/novels/{novelId} {
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId);
+    }
+
+
+    // ========== 小說 (novels) ==========
+    match /novels/{novelId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.authorUid == request.auth.uid;
+
+      allow update: if isSignedIn()
+                    && resource.data.authorUid == request.auth.uid;
+
+      allow delete: if isSignedIn()
+                    && resource.data.authorUid == request.auth.uid
+                    && resource.data.get('isOfficial', false) == false;
+    }
+
+
+    // ========== 評論 (comments) ==========
+    match /comments/{novelId}/items/{commentId} {
+      allow read: if true;
+
+      allow create: if isSignedIn()
+                    && request.resource.data.authorUid == request.auth.uid;
+
+      allow delete: if isSignedIn()
+                    && resource.data.authorUid == request.auth.uid;
+    }
+
+
+    // ========== 使用者資料 (users) - 未來使用 ==========
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+
+
+    // ========== 預設規則: 拒絕所有未明確設定的 Collection ==========
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
