@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { getNovelById } from "../utils/novelsHelper";
-import { parseNovelChapters } from "../utils/parser";
 import { saveBookmark, getBookmark } from "../utils/bookmarkManager";
 import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
@@ -41,18 +40,9 @@ function ReadingPage() {
 
         let parsedChapters = [];
 
-        // 情況 1: 上傳的小說 (章節已經存在)
-        if (foundNovel.isTemp && foundNovel.chapters) {
+        // 章節直接存在小說資料中（Firestore 上傳的小說）
+        if (foundNovel.chapters && foundNovel.chapters.length > 0) {
           parsedChapters = foundNovel.chapters;
-        }
-        // 情況 2: mockData 的小說 (需要載入 TXT 檔案)
-        else if (foundNovel.txtFile) {
-          const response = await fetch(foundNovel.txtFile);
-          if (!response.ok) {
-            throw new Error("無法載入小說檔案");
-          }
-          const txtContent = await response.text();
-          parsedChapters = parseNovelChapters(txtContent);
         }
 
         if (parsedChapters.length === 0) {

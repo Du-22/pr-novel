@@ -8,6 +8,7 @@ import {
   syncNovelDeleteFromFirestore,
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
+import { refreshNovels } from "../utils/novelsHelper";
 
 export default function MyUploadsPage() {
   const navigate = useNavigate();
@@ -32,16 +33,16 @@ export default function MyUploadsPage() {
     setShowDialog(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (novelToDelete) {
       deleteUploadedNovel(novelToDelete.id);
       setNovels(novels.filter((n) => n.id !== novelToDelete.id));
 
-      // 背景同步刪除 Firestore
       if (novelToDelete.firestoreId && user) {
-        syncNovelDeleteFromFirestore(novelToDelete.firestoreId, user.uid).catch(
+        await syncNovelDeleteFromFirestore(novelToDelete.firestoreId, user.uid).catch(
           (err) => console.error("Firestore 刪除失敗:", err)
         );
+        await refreshNovels();
       }
 
       setShowDialog(false);

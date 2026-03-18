@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import HeroSection from "../components/HeroSection";
 import NovelCard from "../components/NovelCard";
-import { allTags } from "../data/mockData";
-import { getAllNovels } from "../utils/novelsHelper";
+import { getAllNovels, getAllTags } from "../utils/novelsHelper";
 import { getWeeklyRandomNovels, getRandomTagSections } from "../utils/random";
 
 const HomePage = () => {
@@ -20,7 +19,7 @@ const HomePage = () => {
 
   // ========== 隨機標籤區:每次開網頁都不同 ==========
   const randomTagSections = useMemo(() => {
-    return getRandomTagSections(allTags, allNovels, 2, 3);
+    return getRandomTagSections(getAllTags(), allNovels, 2, 3);
   }, [allNovels]);
 
   return (

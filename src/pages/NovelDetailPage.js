@@ -3,11 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import NovelCard from "../components/NovelCard";
 import { getAllNovels } from "../utils/novelsHelper";
-import {
-  parseNovelChapters,
-  getTotalWordCount,
-  formatWordCount,
-} from "../utils/parser";
+import { getTotalWordCount, formatWordCount } from "../utils/parser";
 import { getNovelsByTag } from "../utils/random";
 import { getBookmark } from "../utils/bookmarkManager";
 import { getReadChapters } from "../utils/readHistoryManager";
@@ -77,16 +73,8 @@ export default function NovelDetailPage() {
     try {
       setLoading(true);
 
-      // 如果是上傳的小說,直接使用 chapters
-      if (novel.chapters) {
+      if (novel.chapters && novel.chapters.length > 0) {
         setChapters(novel.chapters);
-      }
-      // 如果是 mockData 的小說,從 txtFile 載入
-      else if (novel.txtFile) {
-        const response = await fetch(novel.txtFile);
-        const txtContent = await response.text();
-        const parsedChapters = parseNovelChapters(txtContent);
-        setChapters(parsedChapters);
       }
     } catch (error) {
       console.error("載入章節失敗:", error);

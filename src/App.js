@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { loadAllNovels } from "./utils/novelsHelper";
 import ScrollToTop from "./components/ScrollToTop";
 import HomePage from "./pages/HomePage";
 import NovelDetailPage from "./pages/NovelDetailPage";
@@ -18,6 +19,20 @@ import SearchPage from "./pages/SearchPage";
 import SyncIndicator from "./components/SyncIndicator";
 
 function App() {
+  const [novelsReady, setNovelsReady] = useState(false);
+
+  useEffect(() => {
+    loadAllNovels().then(() => setNovelsReady(true));
+  }, []);
+
+  if (!novelsReady) {
+    return (
+      <div className="min-h-screen bg-light flex items-center justify-center">
+        <p className="text-gray-400">載入中...</p>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <ScrollToTop /> {/* 跳轉頁面時滾動到頂部 */}
