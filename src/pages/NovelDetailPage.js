@@ -39,7 +39,7 @@ export default function NovelDetailPage() {
     loadNovelData();
   }, [id, navigate]);
 
-  const loadNovelData = () => {
+  const loadNovelData = async () => {
     // 尋找小說 (支援 mockData + 上傳的小說)
     const allNovels = getAllNovels();
     const foundNovel = allNovels.find((n) => n.id === id);
@@ -65,8 +65,8 @@ export default function NovelDetailPage() {
     const newViews = incrementViews(id);
     setStats({ ...currentStats, views: newViews });
 
-    // 載入收藏狀態
-    const favorited = checkIsFavorited(id);
+    // 載入收藏狀態 (改為非同步)
+    const favorited = await checkIsFavorited(id);
     setIsFavorited(favorited);
   };
 
@@ -118,16 +118,16 @@ export default function NovelDetailPage() {
 
   // ========== 切換收藏 ==========
 
-  const toggleFavorite = () => {
+  const toggleFavorite = async () => {
     if (isFavorited) {
       // 取消收藏
-      removeFavorite(id);
+      await removeFavorite(id);
       const newFavorites = decrementFavorites(id);
       setStats((prev) => ({ ...prev, favorites: newFavorites }));
       setIsFavorited(false);
     } else {
       // 加入收藏
-      addFavorite(id);
+      await addFavorite(id);
       const newFavorites = incrementFavorites(id);
       setStats((prev) => ({ ...prev, favorites: newFavorites }));
       setIsFavorited(true);
@@ -277,7 +277,7 @@ export default function NovelDetailPage() {
                   {loading ? "載入中..." : getReadButtonText()}
                 </button>
 
-                {/* ⭐ 收藏按鈕 - 使用 Tailwind 紫色系 */}
+                {/* 收藏按鈕 - 使用 Tailwind 紫色系 */}
                 <button
                   onClick={toggleFavorite}
                   className={`px-6 py-3 rounded-lg border-2 transition-colors font-semibold

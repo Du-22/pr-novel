@@ -14,6 +14,7 @@ import MyUploadsPage from "./pages/MyUploadsPage";
 import EditUploadPage from "./pages/EditUploadPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
+import SyncIndicator from "./components/SyncIndicator";
 
 function App() {
   return (
@@ -60,6 +61,7 @@ function App() {
         {/* 404頁面 */}
         <Route path="*" element={<div>頁面不存在</div>} />
       </Routes>
+      <SyncIndicator /> {/* 同步狀態指示器 */}
     </Router>
   );
 }
