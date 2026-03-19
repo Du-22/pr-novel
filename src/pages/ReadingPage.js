@@ -5,6 +5,9 @@ import { getNovelById } from "../utils/novelsHelper";
 import { saveBookmark, getBookmark } from "../utils/bookmarkManager";
 import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
+import { parseNovelChapters } from "../utils/parser";
+import { ref, getBytes } from "firebase/storage";
+import { storage } from "../firebase/config";
 
 const CHARS_PER_PAGE = 3000; // 每頁字數上限
 
@@ -22,6 +25,8 @@ function ReadingPage() {
   const [error, setError] = useState(null);
 
   const chapterNumber = parseInt(chapter);
+  // 快取已從 Storage 下載並解析的章節（含 content），避免重複 fetch
+  const txtCacheRef = useRef(null);
 
   // ========== 載入小說資料 ==========
   useEffect(() => {
@@ -40,8 +45,19 @@ function ReadingPage() {
 
         let parsedChapters = [];
 
-        // 章節直接存在小說資料中（Firestore 上傳的小說）
-        if (foundNovel.chapters && foundNovel.chapters.length > 0) {
+        if (foundNovel.txtUrl) {
+          // 從 Storage 取得 TXT（有快取則直接使用）
+          if (txtCacheRef.current && txtCacheRef.current.novelId === id) {
+            parsedChapters = txtCacheRef.current.chapters;
+          } else {
+            const storageRef = ref(storage, `novels/${id}/content.txt`);
+            const bytes = await getBytes(storageRef);
+            const text = new TextDecoder("utf-8").decode(bytes);
+            parsedChapters = parseNovelChapters(text);
+            txtCacheRef.current = { novelId: id, chapters: parsedChapters };
+          }
+        } else if (foundNovel.chapters && foundNovel.chapters.length > 0) {
+          // 舊格式：章節內容直接存在 chapters 陣列中
           parsedChapters = foundNovel.chapters;
         }
 
@@ -135,11 +151,15 @@ function ReadingPage() {
     return currentChapter.content.slice(start, end);
   };
 
+  // ========== 換頁後捲回頂部 ==========
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [currentPage]);
+
   // ========== 換頁處理 ==========
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
-    window.scrollTo({ top: 0, behavior: "smooth" });
     saveBookmark(id, chapterNumber, newPage);
   };
 

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { parseNovelChapters } from "../../utils/parser";
 import ChapterPreview from "./ChapterPreview";
 
-export default function TxtUploadSection({ onChaptersChange, onError }) {
+export default function TxtUploadSection({ onChaptersChange, onTxtContentChange, onError }) {
   const [isParsingTxt, setIsParsingTxt] = useState(false);
   const [chapters, setChapters] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -36,6 +36,7 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
         setChapters(parsedChapters);
         setShowPreview(true);
         onChaptersChange(parsedChapters);
+        if (onTxtContentChange) onTxtContentChange(text);
       }
     } catch (err) {
       console.error("解析失敗:", err);

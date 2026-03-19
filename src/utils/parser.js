@@ -102,8 +102,8 @@ function parseChineseNumber(chineseNum) {
 function parseChapterTitle(line) {
   const trimmed = line.trim();
 
-  // 1. 特殊章節: 序章/前言/楔子
-  if (/^(序章|序|前言|楔子|prologue)/i.test(trimmed)) {
+  // 1. 特殊章節: 序章/前言/楔子（後面必須是空白、冒號或結尾，避免誤判一般句子）
+  if (/^(序章|序|前言|楔子|prologue)(\s.*|[：:].*|$)/i.test(trimmed)) {
     return {
       chapterNumber: 0,
       title: trimmed,
@@ -112,7 +112,7 @@ function parseChapterTitle(line) {
   }
 
   // 2. 特殊章節: 後記/尾聲/epilogue
-  if (/^(後記|尾聲|epilogue)/i.test(trimmed)) {
+  if (/^(後記|尾聲|epilogue)(\s.*|[：:].*|$)/i.test(trimmed)) {
     return {
       chapterNumber: 999,
       title: trimmed,

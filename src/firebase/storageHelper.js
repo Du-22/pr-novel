@@ -50,6 +50,21 @@ export const uploadNovelTxt = async (novelId, file) => {
 };
 
 /**
+ * 上傳小說 TXT 文字內容到 Storage
+ * @param {string} novelId - 小說 Firestore ID
+ * @param {string} textContent - TXT 純文字內容
+ * @returns {Promise<string>} - TXT 的下載 URL
+ */
+export const uploadNovelTxtContent = async (novelId, textContent) => {
+  const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+  const storageRef = ref(storage, `novels/${novelId}/content.txt`);
+  await uploadBytes(storageRef, blob);
+  const url = await getDownloadURL(storageRef);
+  console.log("✅ 小說 TXT 內容已上傳至 Storage:", url);
+  return url;
+};
+
+/**
  * 刪除 Storage 中的封面圖片
  * @param {string} url - 圖片下載 URL
  */
