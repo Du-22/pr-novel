@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import NovelCard from "../components/NovelCard";
@@ -8,12 +8,10 @@ import { getNovelsByTag } from "../utils/random";
 import { getBookmark } from "../utils/bookmarkManager";
 import { getReadChapters } from "../utils/readHistoryManager";
 import {
-  initializeStats,
-  getNovelStats,
-  incrementViews,
-  incrementFavorites,
-  decrementFavorites,
-} from "../utils/statsManager";
+  incrementNovelViews,
+  incrementNovelFavorites,
+  decrementNovelFavorites,
+} from "../firebase/novels";
 import {
   isFavorited as checkIsFavorited,
   addFavorite,
@@ -31,6 +29,8 @@ export default function NovelDetailPage() {
   const [similarNovels, setSimilarNovels] = useState([]);
   const [bookmark, setBookmark] = useState(null);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
+  // 防止 React StrictMode 雙重觸發閱讀數
+  const incrementedForIdRef = useRef(null);
 
   useEffect(() => {
     loadNovelData();
@@ -57,10 +57,16 @@ export default function NovelDetailPage() {
     const savedBookmark = getBookmark(id);
     setBookmark(savedBookmark);
 
-    // 載入統計數據並增加 views (每次進入都 +1)
-    const currentStats = getNovelStats(id);
-    const newViews = incrementViews(id);
-    setStats({ ...currentStats, views: newViews });
+    // 載入統計數據並增加 views (每次進入都 +1，防止 StrictMode 雙重觸發)
+    const baseViews = foundNovel.stats?.views || 0;
+    const baseFavorites = foundNovel.stats?.favorites || 0;
+    if (incrementedForIdRef.current !== id) {
+      incrementedForIdRef.current = id;
+      setStats({ views: baseViews + 1, favorites: baseFavorites });
+      incrementNovelViews(id).catch(() => {});
+    } else {
+      setStats({ views: baseViews, favorites: baseFavorites });
+    }
 
     // 載入收藏狀態 (改為非同步)
     const favorited = await checkIsFavorited(id);
@@ -109,16 +115,14 @@ export default function NovelDetailPage() {
 
   const toggleFavorite = async () => {
     if (isFavorited) {
-      // 取消收藏
       await removeFavorite(id);
-      const newFavorites = decrementFavorites(id);
-      setStats((prev) => ({ ...prev, favorites: newFavorites }));
+      decrementNovelFavorites(id).catch(() => {});
+      setStats((prev) => ({ ...prev, favorites: Math.max(0, prev.favorites - 1) }));
       setIsFavorited(false);
     } else {
-      // 加入收藏
       await addFavorite(id);
-      const newFavorites = incrementFavorites(id);
-      setStats((prev) => ({ ...prev, favorites: newFavorites }));
+      incrementNovelFavorites(id).catch(() => {});
+      setStats((prev) => ({ ...prev, favorites: prev.favorites + 1 }));
       setIsFavorited(true);
     }
   };

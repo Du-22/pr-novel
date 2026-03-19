@@ -91,10 +91,10 @@ function ReadingPage() {
   // ========== 標記為已讀 ==========
   useEffect(() => {
     if (currentChapter) {
-      // 延遲 5 秒後標記為已讀 (避免誤觸)
+      // 延遲 2 秒後標記為已讀 (避免誤觸)
       const timer = setTimeout(() => {
         markChapterAsRead(id, chapterNumber);
-      }, 5000);
+      }, 2000);
 
       return () => clearTimeout(timer);
     }
