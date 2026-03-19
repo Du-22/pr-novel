@@ -20,6 +20,7 @@ export default function UserProfilePage() {
   const [uploaderName, setUploaderName] = useState("");
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -27,6 +28,10 @@ export default function UserProfilePage() {
       try {
         // 取得使用者公開資料（顯示名稱、簡介）
         const profile = await getUserProfile(uid);
+        if (!profile) {
+          setNotFound(true);
+          return;
+        }
         setUploaderName(profile?.displayName || "");
         setBio(profile?.bio || "");
 
@@ -59,6 +64,18 @@ export default function UserProfilePage() {
 
   const displayName = uploaderName || "使用者";
   const initial = displayName.charAt(0).toUpperCase();
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-light">
+        <Navbar showBackButton={true} />
+        <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+          <p className="text-gray-400 text-lg mb-4">找不到此使用者</p>
+          <a href="/" className="text-primary hover:underline text-sm">回到首頁</a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-light">

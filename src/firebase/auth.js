@@ -114,6 +114,17 @@ export const resetPassword = async (email) => {
   }
 };
 
+// ========== 更新暱稱 ==========
+export const updateDisplayName = async (newDisplayName) => {
+  try {
+    await updateProfile(auth.currentUser, { displayName: newDisplayName });
+    console.log("✅ 暱稱更新成功:", newDisplayName);
+  } catch (error) {
+    console.error("❌ 暱稱更新失敗:", error.message);
+    throw handleAuthError(error);
+  }
+};
+
 // ========== 取得目前使用者 ==========
 /**
  * 取得目前登入的使用者

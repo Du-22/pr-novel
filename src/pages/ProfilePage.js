@@ -11,6 +11,7 @@ import MyWorks from "../components/profile/MyWorks";
 import ReadingHistory from "../components/profile/ReadingHistory";
 import { useAuth } from "../hooks/useAuth";
 import { getUserProfile, updateUserProfile } from "../firebase/users";
+import { updateDisplayName } from "../firebase/auth";
 
 export default function ProfilePage() {
   const [searchParams] = useSearchParams();
@@ -23,6 +24,10 @@ export default function ProfilePage() {
   const [bioInput, setBioInput] = useState("");
   const [savingBio, setSavingBio] = useState(false);
 
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
+
   // 載入使用者簡介
   useEffect(() => {
     if (!user) return;
@@ -34,6 +39,20 @@ export default function ProfilePage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleSaveName = async () => {
+    if (!user || !nameInput.trim()) return;
+    setSavingName(true);
+    try {
+      await updateDisplayName(nameInput.trim());
+      await updateUserProfile(user.uid, { displayName: nameInput.trim() });
+      setEditingName(false);
+    } catch {
+      alert("儲存失敗，請稍後再試");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleSaveBio = async () => {
     if (!user) return;
@@ -89,7 +108,39 @@ export default function ProfilePage() {
 
               {/* 名稱 + 簡介 */}
               <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-bold text-dark mb-1">{displayName}</h1>
+                {editingName ? (
+                  <div className="flex items-center gap-2 mb-1">
+                    <input
+                      type="text"
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      maxLength={20}
+                      className="px-2 py-1 border border-gray-300 rounded-lg text-sm font-bold
+                               focus:ring-2 focus:ring-primary focus:border-transparent w-40"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveName();
+                        if (e.key === "Escape") setEditingName(false);
+                      }}
+                      autoFocus
+                    />
+                    <button onClick={handleSaveName} disabled={savingName}
+                      className="text-xs text-primary hover:text-primary/80 transition-colors">
+                      {savingName ? "儲存中..." : "確認"}
+                    </button>
+                    <button onClick={() => setEditingName(false)}
+                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                      取消
+                    </button>
+                  </div>
+                ) : (
+                  <h1
+                    onClick={() => { setNameInput(displayName); setEditingName(true); }}
+                    className="text-xl font-bold text-dark mb-1 cursor-pointer hover:bg-light rounded px-2 py-0.5 -mx-2 inline-block transition-colors"
+                    title="點擊修改暱稱"
+                  >
+                    {displayName}
+                  </h1>
+                )}
                 <p className="text-sm text-gray-400 mb-3">{user.email}</p>
 
                 {editingBio ? (
