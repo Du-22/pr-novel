@@ -56,6 +56,20 @@ service cloud.firestore {
     }
 
 
+    // ========== 評分 (ratings) ==========
+    // 評分統計文件（ratingSum, ratingCount）
+    match /ratings/{novelId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    // 個人評分記錄
+    match /ratings/{novelId}/users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+
     // ========== 評論 (comments) ==========
     // 計數器文件（記錄每本小說的 topLevelCount）
     match /comments/{novelId} {

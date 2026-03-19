@@ -17,11 +17,16 @@ import {
   addFavorite,
   removeFavorite,
 } from "../utils/favoritesManager";
+import { useAuth } from "../hooks/useAuth";
 import CommentsSection from "../components/CommentsSection";
+import RatingDisplay from "../components/RatingDisplay";
+import RatingInput from "../components/RatingInput";
+import { getUserRating, submitRating, getRatingStats } from "../firebase/ratings";
 
 export default function NovelDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +34,9 @@ export default function NovelDetailPage() {
   const [similarNovels, setSimilarNovels] = useState([]);
   const [bookmark, setBookmark] = useState(null);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
+  const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
+  const [userRating, setUserRating] = useState(null);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
   // 防止 React StrictMode 雙重觸發閱讀數
   const incrementedForIdRef = useRef(null);
 
@@ -68,9 +76,43 @@ export default function NovelDetailPage() {
       setStats({ views: baseViews, favorites: baseFavorites });
     }
 
-    // 載入收藏狀態 (改為非同步)
+    // 載入收藏狀態
     const favorited = await checkIsFavorited(id);
     setIsFavorited(favorited);
+
+    // 載入評分統計（從獨立的 ratings 文件）
+    const ratingData = await getRatingStats(id);
+    setRatingStats(ratingData);
+  };
+
+  // 登入狀態改變時重新載入使用者評分
+  useEffect(() => {
+    if (user && id) {
+      getUserRating(id, user.uid).then(setUserRating);
+    } else {
+      setUserRating(null);
+    }
+  }, [user, id]);
+
+  const handleRate = async (rating) => {
+    if (!user || ratingSubmitting) return;
+    setRatingSubmitting(true);
+    try {
+      const oldRating = userRating;
+      await submitRating(id, user.uid, rating);
+      setRatingStats((prev) => {
+        if (oldRating === null) {
+          return { ratingSum: prev.ratingSum + rating, ratingCount: prev.ratingCount + 1 };
+        } else {
+          return { ratingSum: prev.ratingSum - oldRating + rating, ratingCount: prev.ratingCount };
+        }
+      });
+      setUserRating(rating);
+    } catch (err) {
+      console.error("評分失敗:", err);
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   // ========== 載入章節 ==========
@@ -295,6 +337,12 @@ export default function NovelDetailPage() {
           </p>
         </div>
 
+        {/* ========== 評分展示 ========== */}
+        <RatingDisplay
+          ratingSum={ratingStats.ratingSum}
+          ratingCount={ratingStats.ratingCount}
+        />
+
         {/* ========== 章節目錄 ========== */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <h2 className="text-2xl font-bold text-dark mb-4">章節目錄</h2>
@@ -338,6 +386,14 @@ export default function NovelDetailPage() {
             </div>
           )}
         </div>
+
+        {/* ========== 評分輸入 ========== */}
+        <RatingInput
+          user={user}
+          userRating={userRating}
+          onRate={handleRate}
+          submitting={ratingSubmitting}
+        />
 
         {/* ========== 你可能也喜歡 ========== */}
         {similarNovels.length > 0 && (
