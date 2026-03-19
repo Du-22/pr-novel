@@ -95,7 +95,7 @@ const RankingCard = ({ novel, rank }) => {
           <span>{novel.stats?.views || 0} 閱讀</span>
           <span>{novel.stats?.favorites || 0} 收藏</span>
           {novel.createdAt && (
-            <span>上架 {formatDate(novel.createdAt)}</span>
+            <span className="hidden sm:inline">上架 {formatDate(novel.createdAt)}</span>
           )}
         </div>
       </div>
