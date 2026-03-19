@@ -21,6 +21,7 @@ export default function UploadPage() {
   // 表單狀態
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [translator, setTranslator] = useState("");
   const [summary, setSummary] = useState("");
   const [tags, setTags] = useState("");
   const [status, setStatus] = useState("serializing"); // "serializing" | "completed"
@@ -71,12 +72,14 @@ export default function UploadPage() {
       const novelData = {
         title: title.trim(),
         author: author.trim(),
+        translator: translator.trim(),
         summary: summary.trim(),
         tags: tagsArray,
         status,
         coverImage: coverImage || DEFAULT_COVER, // 沒上傳就用預設封面
         chapters: chapters,
         txtFile: null, // localStorage 版本不存檔案路徑
+        uploaderName: user?.displayName || user?.email?.split("@")[0] || "",
       };
 
       // 儲存到 localStorage
@@ -155,10 +158,12 @@ export default function UploadPage() {
           <BasicInfoForm
             title={title}
             author={author}
+            translator={translator}
             summary={summary}
             tags={tags}
             onTitleChange={setTitle}
             onAuthorChange={setAuthor}
+            onTranslatorChange={setTranslator}
             onSummaryChange={setSummary}
             onTagsChange={setTags}
           />

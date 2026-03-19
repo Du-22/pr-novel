@@ -20,11 +20,13 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
     const docRef = await addDoc(collection(db, "novels"), {
       title: novelData.title,
       author: novelData.author,
+      translator: novelData.translator || "",
       summary: novelData.summary,
       tags: novelData.tags,
       coverImage: novelData.coverImage,
       chapters: novelData.chapters,
       authorUid: userId,
+      uploaderName: novelData.uploaderName || "",
       isOfficial: false,
       createdAt: serverTimestamp(),
       stats: { views: 0, favorites: 0 },

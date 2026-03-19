@@ -3,10 +3,12 @@ import React from "react";
 export default function BasicInfoForm({
   title,
   author,
+  translator,
   summary,
   tags,
   onTitleChange,
   onAuthorChange,
+  onTranslatorChange,
   onSummaryChange,
   onTagsChange,
 }) {
@@ -43,6 +45,21 @@ export default function BasicInfoForm({
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 
                    focus:ring-primary focus:border-transparent"
           required
+        />
+      </div>
+
+      {/* 譯者/上傳者 */}
+      <div>
+        <label className="block text-sm font-medium text-dark mb-2">
+          譯者/上傳者 <span className="text-gray-400 text-xs">（選填）</span>
+        </label>
+        <input
+          type="text"
+          value={translator}
+          onChange={(e) => onTranslatorChange(e.target.value)}
+          placeholder="若與原作者不同，請填寫譯者或搬運者名稱"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2
+                   focus:ring-primary focus:border-transparent"
         />
       </div>
 

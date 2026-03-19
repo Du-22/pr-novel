@@ -34,8 +34,13 @@ const NovelCard = ({ novel }) => {
           )}
         </div>
 
-        {/* 作者 */}
-        <p className="text-sm text-gray-500 mb-2">{novel.author}</p>
+        {/* 作者 / 譯者 */}
+        <p className="text-sm text-gray-500 mb-2">
+          {novel.author}
+          {novel.translator && (
+            <span className="text-gray-400"> · 譯: {novel.translator}</span>
+          )}
+        </p>
 
         {/* 簡介 */}
         <p className="text-sm text-gray-600 mb-3 line-clamp-3 leading-relaxed break-words">
