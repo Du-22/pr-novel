@@ -35,11 +35,12 @@ function formatDate(timestamp) {
 
 function Avatar({
   name,
+  uid,
   size = "w-9 h-9",
   bg = "bg-secondary/40",
   textColor = "text-primary",
 }) {
-  return (
+  const inner = (
     <div
       className={`flex-shrink-0 ${size} rounded-full ${bg} flex items-center justify-center`}
     >
@@ -48,6 +49,14 @@ function Avatar({
       </span>
     </div>
   );
+  if (uid) {
+    return (
+      <Link to={`/user/${uid}`} onClick={(e) => e.stopPropagation()}>
+        {inner}
+      </Link>
+    );
+  }
+  return inner;
 }
 
 function FloorBadge({ floor }) {
@@ -481,7 +490,7 @@ export default function CommentsSection({
               <div key={comment.id}>
                 {/* ---- 第一層留言 ---- */}
                 <div className="flex gap-3">
-                  <Avatar name={comment.authorName} />
+                  <Avatar name={comment.authorName} uid={comment.authorUid} />
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -554,7 +563,7 @@ export default function CommentsSection({
                   <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
                     {visibleReplies.map((reply) => (
                       <div key={reply.id} className="flex gap-3">
-                        <Avatar name={reply.authorName} size="w-7 h-7" />
+                        <Avatar name={reply.authorName} uid={reply.authorUid} size="w-7 h-7" />
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2 flex-wrap">

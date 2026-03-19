@@ -262,7 +262,27 @@ export default function NovelDetailPage() {
               <h1 className="text-3xl font-bold text-dark mb-2 break-words">
                 {novel.title}
               </h1>
-              <p className="text-gray-600 mb-4">作者: {novel.author}</p>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-4 text-gray-600">
+                <span>作者: {novel.author}</span>
+                {novel.translator && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span>
+                      譯者/上傳者:{" "}
+                      {novel.authorUid ? (
+                        <Link
+                          to={`/user/${novel.authorUid}`}
+                          className="text-primary hover:underline"
+                        >
+                          {novel.translator}
+                        </Link>
+                      ) : (
+                        novel.translator
+                      )}
+                    </span>
+                  </>
+                )}
+              </div>
 
               {/* 標籤 */}
               <div className="flex flex-wrap gap-2 mb-4">

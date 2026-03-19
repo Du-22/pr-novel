@@ -5,6 +5,7 @@ import { syncFavorites } from "../utils/favoritesManager";
 import { syncBookmarks } from "../utils/bookmarkManager";
 import { syncReadHistory } from "../utils/readHistoryManager";
 import { syncNovelsFromFirestore } from "../utils/uploadedNovelsManager";
+import { saveUserProfile } from "../firebase/users";
 
 /**
  * 登入狀態管理 Hook
@@ -29,6 +30,8 @@ export function useAuth() {
           // 使用者已登入
           console.log("✅ 使用者已登入:", currentUser.email);
           setUser(currentUser);
+          // 儲存使用者公開資料
+          saveUserProfile(currentUser.uid, currentUser.displayName, currentUser.email).catch(() => {});
           // 登入後自動同步收藏、書籤、閱讀記錄、小說列表
           syncFavorites().catch((err) => console.error("登入後同步收藏失敗:", err));
           syncBookmarks().catch((err) => console.error("登入後同步書籤失敗:", err));

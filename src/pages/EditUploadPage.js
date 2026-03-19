@@ -21,6 +21,7 @@ export default function EditUploadPage() {
 
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
+  const [translator, setTranslator] = useState("");
   const [summary, setSummary] = useState("");
   const [tags, setTags] = useState("");
   const [coverImage, setCoverImage] = useState("");
@@ -53,12 +54,13 @@ export default function EditUploadPage() {
       const tagsString = (novel.tags || []).join(", ");
       setTitle(novel.title);
       setAuthor(novel.author);
+      setTranslator(novel.translator || "");
       setSummary(novel.summary);
       setTags(tagsString);
       setCoverImage(novel.coverImage);
       setStatus(novel.status || "serializing");
       setChapters(novel.chapters || []);
-      setOriginalData({ title: novel.title, author: novel.author, summary: novel.summary, tags: tagsString, coverImage: novel.coverImage, status: novel.status || "serializing" });
+      setOriginalData({ title: novel.title, author: novel.author, translator: novel.translator || "", summary: novel.summary, tags: tagsString, coverImage: novel.coverImage, status: novel.status || "serializing" });
       setLoading(false);
     };
 
@@ -71,12 +73,13 @@ export default function EditUploadPage() {
     setHasUnsavedChanges(
       title !== originalData.title ||
       author !== originalData.author ||
+      translator !== originalData.translator ||
       summary !== originalData.summary ||
       tags !== originalData.tags ||
       coverImage !== originalData.coverImage ||
       status !== originalData.status
     );
-  }, [title, author, summary, tags, coverImage, status, originalData]);
+  }, [title, author, translator, summary, tags, coverImage, status, originalData]);
 
   // 離開前提醒
   useEffect(() => {
@@ -111,6 +114,7 @@ export default function EditUploadPage() {
       const updateData = {
         title: title.trim(),
         author: author.trim(),
+        translator: translator.trim(),
         summary: summary.trim(),
         tags: tagsArray,
         coverImage,
@@ -173,10 +177,12 @@ export default function EditUploadPage() {
           <BasicInfoForm
             title={title}
             author={author}
+            translator={translator}
             summary={summary}
             tags={tags}
             onTitleChange={setTitle}
             onAuthorChange={setAuthor}
+            onTranslatorChange={setTranslator}
             onSummaryChange={setSummary}
             onTagsChange={setTags}
           />
