@@ -102,7 +102,14 @@ export const getRankingData = (mockNovels, sortBy = "views", limit = null) => {
       sorted.sort((a, b) => b.stats.favorites - a.stats.favorites);
       break;
     case "new":
-      sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      sorted.sort((a, b) => {
+        const toDate = (val) => {
+          if (!val) return new Date(0);
+          if (typeof val.toDate === "function") return val.toDate();
+          return new Date(val);
+        };
+        return toDate(b.createdAt) - toDate(a.createdAt);
+      });
       break;
     default:
       break;

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Navbar from "../components/Navbar";
 import NovelCard from "../components/NovelCard";
+import NovelListItem from "../components/NovelListItem";
+import ViewToggle from "../components/ViewToggle";
 import { getAllNovels, getAllTags } from "../utils/novelsHelper";
 import { getRankingData } from "../utils/statsManager";
 
@@ -9,6 +11,7 @@ export default function TagsPage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortBy, setSortBy] = useState("new"); // 'new' | 'views' | 'favorites'
   const [filteredNovels, setFilteredNovels] = useState([]);
+  const [view, setView] = useState("grid");
 
   // 動態計算所有標籤 (包含上傳的小說)
   const allTags = useMemo(() => {
@@ -158,19 +161,22 @@ export default function TagsPage() {
             本小說
           </p>
 
-          <div className="flex items-center gap-2">
-            <span className="text-gray-600">排序:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg 
-                       focus:outline-none focus:ring-2 focus:ring-primary/50
-                       bg-white text-dark cursor-pointer"
-            >
-              <option value="new">最新上架</option>
-              <option value="favorites">最多收藏</option>
-              <option value="views">最多閱讀</option>
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">排序:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg
+                         focus:outline-none focus:ring-2 focus:ring-primary/50
+                         bg-white text-dark cursor-pointer"
+              >
+                <option value="new">最新上架</option>
+                <option value="favorites">最多收藏</option>
+                <option value="views">最多閱讀</option>
+              </select>
+            </div>
+            <ViewToggle view={view} onChange={setView} />
           </div>
         </div>
 
@@ -182,10 +188,16 @@ export default function TagsPage() {
               試試看調整篩選條件或清空標籤
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        ) : view === "grid" ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredNovels.map((novel) => (
               <NovelCard key={novel.id} novel={novel} />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filteredNovels.map((novel) => (
+              <NovelListItem key={novel.id} novel={novel} />
             ))}
           </div>
         )}

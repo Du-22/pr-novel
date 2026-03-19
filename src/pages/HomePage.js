@@ -1,20 +1,23 @@
-import React, { useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import HeroSection from "../components/HeroSection";
 import NovelCard from "../components/NovelCard";
+import NovelListItem from "../components/NovelListItem";
+import ViewToggle from "../components/ViewToggle";
 import { getAllNovels, getAllTags } from "../utils/novelsHelper";
 import { getWeeklyRandomNovels, getRandomTagSections } from "../utils/random";
 
 const HomePage = () => {
+  const [view, setView] = useState("grid");
   // ========== 取得所有小說 (mockData + 上傳的) ==========
   const allNovels = useMemo(() => {
     return getAllNovels();
   }, []);
 
-  // ========== 本期強推:每週隨機 6 本 ==========
+  // ========== 本期強推:每週隨機 5 本 ==========
   const featuredNovels = useMemo(() => {
-    return getWeeklyRandomNovels(allNovels, 6);
+    return getWeeklyRandomNovels(allNovels, 5);
   }, [allNovels]);
 
   // ========== 隨機標籤區:每次開網頁都不同 ==========
@@ -61,6 +64,11 @@ const HomePage = () => {
         </section>
 
         {/* ========== 隨機標籤區 ========== */}
+        {randomTagSections.length > 0 && (
+          <div className="flex justify-end mb-4">
+            <ViewToggle view={view} onChange={setView} />
+          </div>
+        )}
         {randomTagSections.map((section, index) => (
           <section key={index} className="mb-12">
             <div className="flex items-center justify-between mb-6">
@@ -73,12 +81,19 @@ const HomePage = () => {
               </Link>
             </div>
 
-            {/* 小說卡片網格 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {section.novels.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
+            {view === "grid" ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {section.novels.map((novel) => (
+                  <NovelCard key={novel.id} novel={novel} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {section.novels.map((novel) => (
+                  <NovelListItem key={novel.id} novel={novel} />
+                ))}
+              </div>
+            )}
           </section>
         ))}
       </div>

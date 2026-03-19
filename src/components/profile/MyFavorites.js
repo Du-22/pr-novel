@@ -1,56 +1,55 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NovelCard from "../NovelCard";
+import NovelListItem from "../NovelListItem";
+import ViewToggle from "../ViewToggle";
 import {
   getFavoriteNovelIds,
   removeFavorite,
   getFavoriteTimestamp,
 } from "../../utils/favoritesManager";
 import { getAllNovels } from "../../utils/novelsHelper";
-import { decrementFavorites } from "../../utils/statsManager";
+import { decrementNovelFavorites } from "../../firebase/novels";
 
 export default function MyFavorites() {
   const navigate = useNavigate();
   const [favoriteNovels, setFavoriteNovels] = useState([]);
+  const [view, setView] = useState("grid"); // "grid" | "list"
 
   // 載入收藏的小說
   useEffect(() => {
     loadFavorites();
   }, []);
 
-  const loadFavorites = () => {
-    const favoriteIds = getFavoriteNovelIds();
+  const loadFavorites = async () => {
+    const favoriteIds = await getFavoriteNovelIds();
     const allNovels = getAllNovels();
 
-    // 根據收藏的 ID 找出對應的小說
-    const novels = favoriteIds
-      .map((id) => {
-        const novel = allNovels.find((n) => n.id === id);
-        if (novel) {
-          return {
-            ...novel,
-            favoriteTime: getFavoriteTimestamp(id),
-          };
-        }
-        return null;
-      })
-      .filter((novel) => novel !== null);
+    const novels = (
+      await Promise.all(
+        favoriteIds.map(async (id) => {
+          const novel = allNovels.find((n) => n.id === id);
+          if (novel) {
+            return {
+              ...novel,
+              favoriteTime: await getFavoriteTimestamp(id),
+            };
+          }
+          return null;
+        })
+      )
+    ).filter((novel) => novel !== null);
 
     setFavoriteNovels(novels);
   };
 
   // 取消收藏
-  const handleRemoveFavorite = (novelId) => {
+  const handleRemoveFavorite = async (novelId) => {
     const confirmRemove = window.confirm("確定要取消收藏嗎？");
     if (!confirmRemove) return;
 
-    // 從收藏列表移除
-    removeFavorite(novelId);
-
-    // 更新統計數據
-    decrementFavorites(novelId);
-
-    // 重新載入收藏列表
+    await removeFavorite(novelId);
+    decrementNovelFavorites(novelId).catch(() => {});
     loadFavorites();
   };
 
@@ -92,42 +91,62 @@ export default function MyFavorites() {
 
   return (
     <div className="space-y-6">
-      {/* 收藏數量提示 */}
-      <div className="text-gray-600">
-        共收藏{" "}
-        <span className="font-semibold text-primary">
-          {favoriteNovels.length}
-        </span>{" "}
-        本小說
+      {/* 標題列 */}
+      <div className="flex items-center justify-between">
+        <div className="text-gray-600">
+          共收藏{" "}
+          <span className="font-semibold text-primary">
+            {favoriteNovels.length}
+          </span>{" "}
+          本小說
+        </div>
+        <ViewToggle view={view} onChange={setView} />
       </div>
 
-      {/* 小說列表 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {favoriteNovels.map((novel) => (
-          <div key={novel.id} className="relative">
-            {/* 使用 NovelCard 元件 */}
-            <NovelCard novel={novel} />
-
-            {/* 收藏時間 */}
-            <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs text-gray-600">
-              收藏於 {formatDate(novel.favoriteTime)}
+      {/* 格狀模式 */}
+      {view === "grid" && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {favoriteNovels.map((novel) => (
+            <div key={novel.id} className="relative">
+              <NovelCard novel={novel} />
+              <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs text-gray-600">
+                收藏於 {formatDate(novel.favoriteTime)}
+              </div>
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRemoveFavorite(novel.id);
+                }}
+                className="absolute bottom-4 right-4 px-4 py-2 bg-red-500 text-white rounded-lg
+                         hover:bg-red-600 transition-colors text-sm font-medium shadow-md hover:shadow-lg"
+              >
+                取消收藏
+              </button>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* 取消收藏按鈕 */}
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                handleRemoveFavorite(novel.id);
-              }}
-              className="absolute bottom-4 right-4 px-4 py-2 bg-red-500 text-white rounded-lg 
-                       hover:bg-red-600 transition-colors text-sm font-medium shadow-md
-                       hover:shadow-lg"
-            >
-              取消收藏
-            </button>
-          </div>
-        ))}
-      </div>
+      {/* 列表模式 */}
+      {view === "list" && (
+        <div className="space-y-2">
+          {favoriteNovels.map((novel) => (
+            <div key={novel.id} className="relative">
+              <NovelListItem novel={novel} />
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRemoveFavorite(novel.id);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-red-500 text-white
+                         rounded-lg hover:bg-red-600 transition-colors text-xs font-medium shadow-sm"
+              >
+                取消收藏
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

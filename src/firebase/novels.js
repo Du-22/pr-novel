@@ -10,6 +10,7 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  increment,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -68,15 +69,26 @@ export const getAllNovels = async () => {
 export const getUserNovels = async (userId) => {
   const q = query(
     collection(db, "novels"),
-    where("authorUid", "==", userId),
-    orderBy("createdAt", "desc")
+    where("authorUid", "==", userId)
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
+  const novels = querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
   }));
+
+  // 用 createdAt 降序排序（client-side，避免複合索引需求）
+  novels.sort((a, b) => {
+    const toDate = (val) => {
+      if (!val) return new Date(0);
+      if (typeof val.toDate === "function") return val.toDate();
+      return new Date(val);
+    };
+    return toDate(b.createdAt) - toDate(a.createdAt);
+  });
+
+  return novels;
 };
 
 // ========== 取得官方小說 ==========
@@ -115,6 +127,38 @@ export const updateNovel = async (novelId, updateData, userId) => {
   });
 
   console.log("✅ 小說更新成功");
+};
+
+// ========== 閱讀數 +1 ==========
+export const incrementNovelViews = async (novelId) => {
+  try {
+    await updateDoc(doc(db, "novels", novelId), {
+      "stats.views": increment(1),
+    });
+  } catch (error) {
+    console.error("增加閱讀數失敗:", error);
+  }
+};
+
+// ========== 收藏數 +1 / -1 ==========
+export const incrementNovelFavorites = async (novelId) => {
+  try {
+    await updateDoc(doc(db, "novels", novelId), {
+      "stats.favorites": increment(1),
+    });
+  } catch (error) {
+    console.error("增加收藏數失敗:", error);
+  }
+};
+
+export const decrementNovelFavorites = async (novelId) => {
+  try {
+    await updateDoc(doc(db, "novels", novelId), {
+      "stats.favorites": increment(-1),
+    });
+  } catch (error) {
+    console.error("減少收藏數失敗:", error);
+  }
 };
 
 // ========== 刪除小說 ==========
