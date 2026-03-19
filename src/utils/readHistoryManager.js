@@ -3,7 +3,7 @@
 // 路徑: src/utils/readHistoryManager.js
 // 用途: 閱讀記錄管理（localStorage + Firestore 雙向同步）
 // ============================================
-import { setDocument, getDocument } from "../firebase/firestore";
+import { setDocument, getDocument, getSubCollectionDocs } from "../firebase/firestore";
 import { auth } from "../firebase/config";
 
 const READ_HISTORY_KEY = "readHistory";
@@ -158,7 +158,7 @@ export function getAllReadHistory() {
 }
 
 /**
- * 登入後同步：將 Firestore 閱讀記錄合併進 localStorage（取章節聯集）
+ * 登入後同步：將 Firestore 所有閱讀記錄合併進 localStorage（取章節聯集）
  */
 export async function syncReadHistory() {
   const user = auth.currentUser;
@@ -168,36 +168,42 @@ export async function syncReadHistory() {
 
   try {
     const localHistory = getLocalHistory();
-    const novelIds = Object.keys(localHistory);
 
-    const firestorePromises = novelIds.map((id) =>
-      getFirestoreReadHistory(id).then((data) => ({ id, data }))
-    );
-    const firestoreResults = await Promise.all(firestorePromises);
+    // 從 Firestore 拉取所有閱讀記錄（不限於 localStorage 已有的）
+    const parentPath = `readHistory/${user.uid}`;
+    const firestoreDocs = await getSubCollectionDocs(parentPath, "novels");
 
-    // 合併：取章節聯集，lastRead 取較新的
-    firestoreResults.forEach(({ id, data }) => {
-      if (!data) return;
-      const local = localHistory[id];
-      const mergedChapters = Array.from(
-        new Set([...(local?.readChapters || []), ...data.readChapters])
-      ).sort((a, b) => a - b);
-
-      const localTime = local?.lastRead ? new Date(local.lastRead) : new Date(0);
-      const remoteTime = data.lastRead ? new Date(data.lastRead) : new Date(0);
-
-      localHistory[id] = {
-        readChapters: mergedChapters,
-        lastRead: (localTime > remoteTime ? local.lastRead : data.lastRead),
+    // 合併：取章節聯集，lastRead 取較新的（聯集）
+    const firestoreIds = new Set();
+    firestoreDocs.forEach((docData) => {
+      const id = docData.id;
+      firestoreIds.add(id);
+      const firestoreEntry = {
+        readChapters: docData.readChapters || [],
+        lastRead: docData.lastRead || null,
       };
+      const local = localHistory[id];
+      if (!local) {
+        localHistory[id] = firestoreEntry;
+      } else {
+        const mergedChapters = Array.from(
+          new Set([...local.readChapters, ...firestoreEntry.readChapters])
+        ).sort((a, b) => a - b);
+        const localTime = local.lastRead ? new Date(local.lastRead) : new Date(0);
+        const remoteTime = firestoreEntry.lastRead ? new Date(firestoreEntry.lastRead) : new Date(0);
+        localHistory[id] = {
+          readChapters: mergedChapters,
+          lastRead: localTime > remoteTime ? local.lastRead : firestoreEntry.lastRead,
+        };
+      }
     });
 
     saveLocalHistory(localHistory);
 
     // 上傳 localStorage 有但 Firestore 沒有的
-    const uploadPromises = firestoreResults
-      .filter(({ data }) => !data)
-      .map(({ id }) => syncReadHistoryToFirestore(id, localHistory[id]));
+    const uploadPromises = Object.keys(localHistory)
+      .filter((id) => !firestoreIds.has(id))
+      .map((id) => syncReadHistoryToFirestore(id, localHistory[id]));
     await Promise.all(uploadPromises);
 
     console.log("✅ 閱讀記錄同步完成");

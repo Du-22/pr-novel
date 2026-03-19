@@ -3,7 +3,7 @@
 // 路徑: src/utils/bookmarkManager.js
 // 用途: 書籤管理（localStorage + Firestore 雙向同步）
 // ============================================
-import { setDocument, getDocument, deleteDocument } from "../firebase/firestore";
+import { setDocument, getDocument, deleteDocument, getSubCollectionDocs } from "../firebase/firestore";
 import { auth } from "../firebase/config";
 
 const BOOKMARKS_KEY = "bookmarks";
@@ -164,8 +164,7 @@ export function getAllBookmarks() {
 }
 
 /**
- * 登入後同步：將 Firestore 書籤合併進 localStorage（以最新時間為準）
- * @param {string[]} novelIds - 要同步的小說 ID 清單（從 localStorage keys 取得）
+ * 登入後同步：將 Firestore 所有書籤合併進 localStorage（聯集，以最新時間為準）
  */
 export async function syncBookmarks() {
   const user = auth.currentUser;
@@ -177,27 +176,33 @@ export async function syncBookmarks() {
 
   try {
     const localBookmarks = getLocalBookmarks();
-    const novelIds = Object.keys(localBookmarks);
 
-    // 從 Firestore 拉取所有有書籤的小說（以 localStorage 的 novelId 為基準）
-    const firestorePromises = novelIds.map((id) => getFirestoreBookmark(id).then((data) => ({ id, data })));
-    const firestoreResults = await Promise.all(firestorePromises);
+    // 從 Firestore 拉取所有書籤（不限於 localStorage 已有的）
+    const parentPath = `bookmarks/${user.uid}`;
+    const firestoreDocs = await getSubCollectionDocs(parentPath, "novels");
 
-    // 合併：以時間較新的那筆為準
-    firestoreResults.forEach(({ id, data }) => {
-      if (!data) return;
+    // 合併：以時間較新的那筆為準（聯集）
+    const firestoreIds = new Set();
+    firestoreDocs.forEach((docData) => {
+      const id = docData.id;
+      firestoreIds.add(id);
+      const firestoreEntry = {
+        chapter: docData.chapter,
+        page: docData.page || 1,
+        timestamp: docData.timestamp || new Date().toISOString(),
+      };
       const local = localBookmarks[id];
-      if (!local || new Date(data.timestamp) > new Date(local.timestamp)) {
-        localBookmarks[id] = data;
+      if (!local || new Date(firestoreEntry.timestamp) > new Date(local.timestamp)) {
+        localBookmarks[id] = firestoreEntry;
       }
     });
 
     saveLocalBookmarks(localBookmarks);
 
     // 將 localStorage 有但 Firestore 沒有的書籤上傳
-    const uploadPromises = firestoreResults
-      .filter(({ data }) => !data)
-      .map(({ id }) => syncBookmarkToFirestore(id, localBookmarks[id]));
+    const uploadPromises = Object.keys(localBookmarks)
+      .filter((id) => !firestoreIds.has(id))
+      .map((id) => syncBookmarkToFirestore(id, localBookmarks[id]));
     await Promise.all(uploadPromises);
 
     syncStatus.isSyncing = false;
