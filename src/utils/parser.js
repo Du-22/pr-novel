@@ -81,7 +81,7 @@ function parseChineseNumber(chineseNum) {
         result += temp;
         temp = 0;
       }
-      lastIsDigit = false;
+      lastIsDigit = false; // eslint-disable-line no-unused-vars
     } else {
       // 遇到無法識別的字元
       return null;
@@ -203,7 +203,7 @@ export function parseNovelChapters(txtContent) {
     const chapterInfo = parseChapterTitle(line);
 
     if (chapterInfo) {
-      foundAnyChapter = true;
+      foundAnyChapter = true; // eslint-disable-line no-unused-vars
 
       // 找到新章節,先保存上一章
       if (currentChapter) {

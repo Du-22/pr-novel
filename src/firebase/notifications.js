@@ -5,7 +5,6 @@
 // ============================================
 import {
   collection,
-  doc,
   addDoc,
   getDocs,
   query,

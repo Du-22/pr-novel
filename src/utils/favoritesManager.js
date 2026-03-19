@@ -1,6 +1,5 @@
 import {
   setDocument,
-  getDocument,
   deleteDocument,
   getSubCollectionDocs,
 } from "../firebase/firestore";

@@ -25,6 +25,7 @@ export default function MyWorks() {
     } else {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadWorks = async () => {

@@ -3,7 +3,7 @@
 // 路徑: src/utils/bookmarkManager.js
 // 用途: 書籤管理（localStorage + Firestore 雙向同步）
 // ============================================
-import { setDocument, getDocument, deleteDocument, getSubCollectionDocs } from "../firebase/firestore";
+import { setDocument, deleteDocument, getSubCollectionDocs } from "../firebase/firestore";
 import { auth } from "../firebase/config";
 
 const BOOKMARKS_KEY = "bookmarks";
@@ -54,21 +54,6 @@ async function deleteBookmarkFromFirestore(novelId) {
 
   const collectionPath = `bookmarks/${user.uid}/novels`;
   await deleteDocument(collectionPath, novelId);
-}
-
-async function getFirestoreBookmark(novelId) {
-  const user = auth.currentUser;
-  if (!user) return null;
-
-  const collectionPath = `bookmarks/${user.uid}/novels`;
-  const doc = await getDocument(collectionPath, novelId);
-  if (!doc) return null;
-
-  return {
-    chapter: doc.chapter,
-    page: doc.page,
-    timestamp: doc.timestamp || new Date().toISOString(),
-  };
 }
 
 // ========== 公開 API ==========

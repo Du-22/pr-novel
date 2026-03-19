@@ -3,7 +3,7 @@
 // 路徑: src/utils/readHistoryManager.js
 // 用途: 閱讀記錄管理（localStorage + Firestore 雙向同步）
 // ============================================
-import { setDocument, getDocument, getSubCollectionDocs } from "../firebase/firestore";
+import { setDocument, getSubCollectionDocs } from "../firebase/firestore";
 import { auth } from "../firebase/config";
 
 const READ_HISTORY_KEY = "readHistory";
@@ -37,19 +37,6 @@ async function syncReadHistoryToFirestore(novelId, data) {
   await setDocument(collectionPath, novelId, data);
 }
 
-async function getFirestoreReadHistory(novelId) {
-  const user = auth.currentUser;
-  if (!user) return null;
-
-  const collectionPath = `readHistory/${user.uid}/novels`;
-  const doc = await getDocument(collectionPath, novelId);
-  if (!doc) return null;
-
-  return {
-    readChapters: doc.readChapters || [],
-    lastRead: doc.lastRead || null,
-  };
-}
 
 // ========== 公開 API ==========
 

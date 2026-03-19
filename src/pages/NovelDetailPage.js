@@ -42,6 +42,7 @@ export default function NovelDetailPage() {
 
   useEffect(() => {
     loadNovelData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
   const loadNovelData = async () => {
