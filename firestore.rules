@@ -92,6 +92,15 @@ service cloud.firestore {
     }
 
 
+    // ========== 通知 (notifications) ==========
+    match /notifications/{userId}/items/{notificationId} {
+      // 只有本人可以讀取、更新（已讀）、刪除自己的通知
+      allow read, update, delete: if isOwner(userId);
+      // 任何已登入使用者都可以建立通知（給他人發送通知）
+      allow create: if isSignedIn();
+    }
+
+
     // ========== 使用者資料 (users) - 未來使用 ==========
     match /users/{userId} {
       allow read: if true;

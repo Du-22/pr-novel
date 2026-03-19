@@ -2,14 +2,38 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { logout } from "../firebase/auth";
+import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
+import { getNotifications, markAllNotificationsAsRead } from "../firebase/notifications";
 
 const Navbar = ({ showBackButton = false }) => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const unreadCount = useUnreadNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
   const searchInputRef = useRef(null);
+
+  const formatNotifDate = (val) => {
+    if (!val) return "";
+    try {
+      const date = typeof val.toDate === "function" ? val.toDate() : new Date(val);
+      return `${date.getMonth() + 1}/${String(date.getDate()).padStart(2, "0")}`;
+    } catch { return ""; }
+  };
+
+  const handleOpenNotifications = async () => {
+    if (showNotifications) { setShowNotifications(false); return; }
+    setShowNotifications(true);
+    setNotifLoading(true);
+    const data = await getNotifications(user.uid);
+    setNotifications(data);
+    setNotifLoading(false);
+    markAllNotificationsAsRead(user.uid).catch(() => {});
+  };
 
   // 展開搜尋列時自動 focus
   useEffect(() => {
@@ -153,6 +177,93 @@ const Navbar = ({ showBackButton = false }) => {
                   />
                 </svg>
               </button>
+            )}
+
+            {/* 通知鈴鐺（已登入才顯示） */}
+            {user && (
+              <div className="relative">
+                <button
+                  onClick={handleOpenNotifications}
+                  className="relative text-white hover:text-pink transition-colors"
+                  aria-label="通知"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full
+                                     flex items-center justify-center text-white text-[10px] font-bold">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* 通知下拉選單 */}
+                {showNotifications && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 overflow-hidden">
+                      {/* 標題列 */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                        <span className="font-semibold text-dark text-sm">通知</span>
+                        <Link
+                          to="/notifications"
+                          onClick={() => setShowNotifications(false)}
+                          className="text-xs text-primary hover:text-primary/80 transition-colors"
+                        >
+                          查看全部
+                        </Link>
+                      </div>
+
+                      {/* 通知列表 */}
+                      <div className="max-h-96 overflow-y-auto">
+                        {notifLoading ? (
+                          <p className="text-center text-gray-400 text-sm py-6">載入中...</p>
+                        ) : notifications.length === 0 ? (
+                          <p className="text-center text-gray-400 text-sm py-6">目前沒有通知</p>
+                        ) : (
+                          notifications.slice(0, 10).map((n) => (
+                            <div
+                              key={n.id}
+                              onClick={() => { navigate(`/novel/${n.novelId}`); setShowNotifications(false); }}
+                              className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-light transition-colors border-b border-gray-50 ${
+                                !n.read ? "bg-primary/5" : ""
+                              }`}
+                            >
+                              {/* 類型圖示 */}
+                              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${
+                                n.type === "reply" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-500"
+                              }`}>
+                                {n.type === "reply" ? "↩" : "♥"}
+                              </div>
+
+                              {/* 內容 */}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-700 leading-relaxed">
+                                  <span className="font-semibold text-dark">{n.fromUserName}</span>
+                                  {n.type === "reply" ? " 回覆了你的留言" : " 對你的留言按讚"}
+                                </p>
+                                {n.novelTitle && (
+                                  <p className="text-xs text-primary truncate">《{n.novelTitle}》</p>
+                                )}
+                                {n.commentContent && (
+                                  <p className="text-xs text-gray-400 truncate">「{n.commentContent}」</p>
+                                )}
+                              </div>
+
+                              {/* 日期 + 未讀點 */}
+                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                <span className="text-xs text-gray-400">{formatNotifDate(n.createdAt)}</span>
+                                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
             {/* 使用者選單 */}

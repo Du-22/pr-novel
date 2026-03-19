@@ -20,6 +20,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
+import { createNotification } from "../firebase/notifications";
 
 const MAX_LENGTH = 300;
 
@@ -62,6 +63,7 @@ const REPLY_LIMIT = 2; // 預設顯示回覆數
 
 export default function CommentsSection({
   novelId,
+  novelTitle = "",
   chapterNumber = null,
   chapters = [],
 }) {
@@ -246,6 +248,18 @@ export default function CommentsSection({
         createdAt: new Date(),
       });
 
+      // 通知被回覆的留言作者（不通知自己）
+      if (replyingTo.authorUid && replyingTo.authorUid !== user.uid) {
+        createNotification(replyingTo.authorUid, {
+          type: "reply",
+          fromUserName: user.displayName || user.email.split("@")[0],
+          novelId,
+          novelTitle,
+          commentContent: replyContent.trim().slice(0, 50),
+          chapterNumber: chapterNumber ?? null,
+        }).catch(() => {});
+      }
+
       setReplyingTo(null);
       setReplyContent("");
       await loadComments();
@@ -304,6 +318,18 @@ export default function CommentsSection({
       await updateDoc(ref, {
         likedBy: alreadyLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
       });
+
+      // 按讚時通知留言作者（不通知自己、不在取消讚時通知）
+      if (!alreadyLiked && comment.authorUid && comment.authorUid !== user.uid) {
+        createNotification(comment.authorUid, {
+          type: "like",
+          fromUserName: user.displayName || user.email.split("@")[0],
+          novelId,
+          novelTitle,
+          commentContent: comment.content?.slice(0, 50) || "",
+          chapterNumber: comment.chapterNumber ?? null,
+        }).catch(() => {});
+      }
     } catch (err) {
       console.error("按讚失敗:", err);
       // 失敗時回滾（重新載入）

@@ -408,7 +408,7 @@ export default function NovelDetailPage() {
         )}
 
         {/* ========== 讀者評論區 ========== */}
-        <CommentsSection novelId={id} chapters={chapters} />
+        <CommentsSection novelId={id} novelTitle={novel.title} chapters={chapters} />
       </div>
     </div>
   );

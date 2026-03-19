@@ -15,6 +15,7 @@ import MyUploadsPage from "./pages/MyUploadsPage";
 import EditUploadPage from "./pages/EditUploadPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import SearchPage from "./pages/SearchPage";
 import SyncIndicator from "./components/SyncIndicator";
 
@@ -73,6 +74,9 @@ function App() {
 
         {/* 搜尋頁 */}
         <Route path="/search" element={<SearchPage />} />
+
+        {/* 通知頁 */}
+        <Route path="/notifications" element={<NotificationsPage />} />
 
         {/* 登入頁 */}
         <Route path="/auth" element={<AuthPage />} />
