@@ -17,6 +17,16 @@ import { db } from "./config";
 // ========== 上傳小說 ==========
 export const uploadNovelToFirestore = async (novelData, userId) => {
   try {
+    // 儲存章節時只保留 metadata，不含 content（避免超過 Firestore 1MB 限制）
+    const chaptersMetadata = (novelData.chapters || []).map(
+      ({ chapterNumber, title, wordCount, isSpecial }) => ({
+        chapterNumber,
+        title,
+        wordCount,
+        isSpecial: isSpecial || false,
+      })
+    );
+
     const docRef = await addDoc(collection(db, "novels"), {
       title: novelData.title,
       author: novelData.author,
@@ -24,7 +34,8 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
       summary: novelData.summary,
       tags: novelData.tags,
       coverImage: novelData.coverImage,
-      chapters: novelData.chapters,
+      chapters: chaptersMetadata,
+      txtUrl: novelData.txtUrl || null,
       authorUid: userId,
       uploaderName: novelData.uploaderName || "",
       isOfficial: false,
@@ -35,8 +46,8 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
     console.log("✅ 小說上傳成功，ID:", docRef.id);
 
     return {
-      id: docRef.id, // ✅ Firebase 生成的 ID
       ...novelData,
+      id: docRef.id, // ✅ 必須在 spread 之後，避免被 novelData.id 覆蓋
     };
   } catch (error) {
     console.error("❌ 上傳小說失敗:", error);

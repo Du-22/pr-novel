@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:3000", "https://pr-novel.vercel.app"],
+    "method": ["GET"],
+    "responseHeader": ["Content-Type"],
+    "maxAgeSeconds": 3600
+  }
+]

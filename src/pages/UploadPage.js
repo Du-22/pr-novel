@@ -11,6 +11,8 @@ import {
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
+import { uploadCoverImage, uploadNovelTxtContent } from "../firebase/storageHelper";
+import { updateNovel } from "../firebase/novels";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
@@ -28,6 +30,7 @@ export default function UploadPage() {
 
   // 檔案狀態
   const [chapters, setChapters] = useState([]);
+  const [txtContent, setTxtContent] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
 
   // 提交狀態
@@ -68,6 +71,12 @@ export default function UploadPage() {
         return;
       }
 
+      // 封面上傳到 Storage（有自訂封面才上傳）
+      let coverUrl = DEFAULT_COVER;
+      if (coverImage && coverImage.startsWith("data:")) {
+        coverUrl = await uploadCoverImage(user.uid, coverImage);
+      }
+
       // 準備資料
       const novelData = {
         title: title.trim(),
@@ -76,9 +85,9 @@ export default function UploadPage() {
         summary: summary.trim(),
         tags: tagsArray,
         status,
-        coverImage: coverImage || DEFAULT_COVER, // 沒上傳就用預設封面
+        coverImage: coverUrl,
         chapters: chapters,
-        txtFile: null, // localStorage 版本不存檔案路徑
+        txtFile: null,
         uploaderName: user?.displayName || user?.email?.split("@")[0] || "",
       };
 
@@ -89,7 +98,14 @@ export default function UploadPage() {
       let targetId = savedNovel.id;
       if (user) {
         const firestoreId = await syncUploadToFirestore(savedNovel.id, user.uid);
-        if (firestoreId) targetId = firestoreId;
+        if (firestoreId) {
+          targetId = firestoreId;
+          // 上傳 TXT 內容到 Storage
+          if (txtContent) {
+            const txtUrl = await uploadNovelTxtContent(firestoreId, txtContent);
+            await updateNovel(firestoreId, { txtUrl }, user.uid);
+          }
+        }
         await refreshNovels();
       }
 
@@ -152,7 +168,11 @@ export default function UploadPage() {
         {/* 表單 */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* TXT 上傳區塊 */}
-          <TxtUploadSection onChaptersChange={setChapters} onError={setError} />
+          <TxtUploadSection
+            onChaptersChange={setChapters}
+            onTxtContentChange={setTxtContent}
+            onError={setError}
+          />
 
           {/* 基本資訊表單 */}
           <BasicInfoForm
