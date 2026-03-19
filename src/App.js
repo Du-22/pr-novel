@@ -18,6 +18,7 @@ import AuthPage from "./pages/AuthPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import SearchPage from "./pages/SearchPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import NotFoundPage from "./pages/NotFoundPage";
 import SyncIndicator from "./components/SyncIndicator";
 
 function App() {
@@ -86,7 +87,7 @@ function App() {
         <Route path="/auth" element={<AuthPage />} />
 
         {/* 404頁面 */}
-        <Route path="*" element={<div>頁面不存在</div>} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <SyncIndicator /> {/* 同步狀態指示器 */}
     </Router>
