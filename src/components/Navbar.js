@@ -15,6 +15,7 @@ const Navbar = ({ showBackButton = false }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const searchInputRef = useRef(null);
 
   const formatNotifDate = (val) => {
@@ -135,6 +136,22 @@ const Navbar = ({ showBackButton = false }) => {
 
           {/* 右側按鈕 */}
           <div className="flex items-center space-x-4">
+            {/* 漢堡選單按鈕 (手機版) */}
+            <button
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+              className="md:hidden text-white hover:text-pink transition-colors"
+              aria-label="選單"
+            >
+              {showMobileMenu ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
             {/* 搜尋區 */}
             {showSearch ? (
               <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
@@ -384,6 +401,34 @@ const Navbar = ({ showBackButton = false }) => {
           </div>
         </div>
       </div>
+
+      {/* 手機版下拉選單 */}
+      {showMobileMenu && (
+        <div className="md:hidden bg-primary/95 border-t border-white/20">
+          <div className="container mx-auto px-4 py-2 flex flex-col">
+            <Link to="/" onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+              首頁
+            </Link>
+            <Link to="/tags" onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+              標籤
+            </Link>
+            <Link to="/ranking" onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+              排行榜
+            </Link>
+            <Link to="/upload" onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+              上傳
+            </Link>
+            <Link to="/profile" onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white hover:text-pink transition-colors">
+              個人中心
+            </Link>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
