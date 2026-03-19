@@ -13,6 +13,7 @@ import EditNotice from "../components/upload/EditNotice";
 import { getNovelById, updateNovel } from "../firebase/novels";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
+import { uploadCoverImage } from "../firebase/storageHelper";
 
 export default function EditUploadPage() {
   const { id } = useParams();
@@ -111,13 +112,19 @@ export default function EditUploadPage() {
     setError("");
 
     try {
+        // 封面換新的才上傳 Storage
+      let finalCoverImage = coverImage;
+      if (coverImage && coverImage.startsWith("data:")) {
+        finalCoverImage = await uploadCoverImage(user.uid, coverImage);
+      }
+
       const updateData = {
         title: title.trim(),
         author: author.trim(),
         translator: translator.trim(),
         summary: summary.trim(),
         tags: tagsArray,
-        coverImage,
+        coverImage: finalCoverImage,
         status,
       };
 

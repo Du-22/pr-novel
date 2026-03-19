@@ -11,6 +11,7 @@ import {
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
+import { uploadCoverImage } from "../firebase/storageHelper";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
@@ -68,6 +69,12 @@ export default function UploadPage() {
         return;
       }
 
+      // 封面上傳到 Storage（有自訂封面才上傳）
+      let coverUrl = DEFAULT_COVER;
+      if (coverImage && coverImage.startsWith("data:")) {
+        coverUrl = await uploadCoverImage(user.uid, coverImage);
+      }
+
       // 準備資料
       const novelData = {
         title: title.trim(),
@@ -76,9 +83,9 @@ export default function UploadPage() {
         summary: summary.trim(),
         tags: tagsArray,
         status,
-        coverImage: coverImage || DEFAULT_COVER, // 沒上傳就用預設封面
+        coverImage: coverUrl,
         chapters: chapters,
-        txtFile: null, // localStorage 版本不存檔案路徑
+        txtFile: null,
         uploaderName: user?.displayName || user?.email?.split("@")[0] || "",
       };
 

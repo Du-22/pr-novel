@@ -37,6 +37,7 @@ export default function NovelDetailPage() {
   const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
   const [userRating, setUserRating] = useState(null);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [showCoverLightbox, setShowCoverLightbox] = useState(false);
   // 防止 React StrictMode 雙重觸發閱讀數
   const incrementedForIdRef = useRef(null);
 
@@ -251,8 +252,8 @@ export default function NovelDetailPage() {
               <img
                 src={novel.coverImage}
                 alt={novel.title}
-                onClick={() => window.open(novel.coverImage, "_blank")}
-                className="w-full md:w-64 h-80 object-cover rounded-lg shadow-lg cursor-pointer 
+                onClick={() => setShowCoverLightbox(true)}
+                className="w-full md:w-64 h-80 object-cover rounded-lg shadow-lg cursor-pointer
                          hover:opacity-90 transition-opacity"
               />
             </div>
@@ -431,6 +432,21 @@ export default function NovelDetailPage() {
         {/* ========== 讀者評論區 ========== */}
         <CommentsSection novelId={id} novelTitle={novel.title} chapters={chapters} />
       </div>
+
+      {/* ========== 封面燈箱 ========== */}
+      {showCoverLightbox && (
+        <div
+          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCoverLightbox(false)}
+        >
+          <img
+            src={novel.coverImage}
+            alt={novel.title}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
