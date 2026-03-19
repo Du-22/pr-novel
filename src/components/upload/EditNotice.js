@@ -7,7 +7,7 @@ export default function EditNotice() {
         💡 目前只能編輯基本資料。若要修改章節內容，請刪除後重新上傳。
       </p>
       <p className="text-sm text-blue-600 mt-1">
-        ⏰ 升級 Firebase 後將支援線上章節編輯功能！
+        若需修改章節內容，請刪除整本後重新上傳。
       </p>
     </div>
   );

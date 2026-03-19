@@ -1,11 +1,14 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import MyFavorites from "../components/profile/MyFavorites";
 import MyWorks from "../components/profile/MyWorks";
 import ReadingHistory from "../components/profile/ReadingHistory";
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState("favorites");
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "favorites";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   // Tab 配置
   const tabs = [
