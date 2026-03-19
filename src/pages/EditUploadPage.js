@@ -1,3 +1,8 @@
+// ============================================
+// 檔案名稱: EditUploadPage.js
+// 路徑: src/pages/EditUploadPage.js
+// 用途: 編輯已上傳小說（從 Firestore 讀取與儲存）
+// ============================================
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -5,11 +10,7 @@ import BasicInfoForm from "../components/upload/BasicInfoForm";
 import CoverUploadSection from "../components/upload/CoverUploadSection";
 import ChapterInfo from "../components/upload/ChapterInfo";
 import EditNotice from "../components/upload/EditNotice";
-import {
-  getUploadedNovelById,
-  updateUploadedNovel,
-  syncNovelUpdateToFirestore,
-} from "../utils/uploadedNovelsManager";
+import { getNovelById, updateNovel } from "../firebase/novels";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
 
@@ -18,56 +19,64 @@ export default function EditUploadPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // 表單狀態
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [summary, setSummary] = useState("");
   const [tags, setTags] = useState("");
   const [coverImage, setCoverImage] = useState("");
+  const [status, setStatus] = useState("serializing"); // "serializing" | "completed"
   const [chapters, setChapters] = useState([]);
-  const [firestoreId, setFirestoreId] = useState(null);
 
-  // UI 狀態
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState(null);
 
-  // 載入小說資料
+  // 載入小說資料（從 Firestore）
   useEffect(() => {
-    const novel = getUploadedNovelById(id);
+    const load = async () => {
+      const novel = await getNovelById(id);
+      if (!novel) {
+        alert("找不到此小說");
+        navigate("/profile");
+        return;
+      }
 
-    if (!novel) {
-      alert("找不到此小說");
-      navigate("/my-uploads");
-      return;
-    }
+      // 權限檢查
+      if (user && novel.authorUid !== user.uid) {
+        alert("你沒有編輯此小說的權限");
+        navigate("/profile");
+        return;
+      }
 
-    const tagsString = novel.tags.join(", ");
-    setTitle(novel.title);
-    setAuthor(novel.author);
-    setSummary(novel.summary);
-    setTags(tagsString);
-    setCoverImage(novel.coverImage);
-    setChapters(novel.chapters || []);
-    setFirestoreId(novel.firestoreId || null);
-    setOriginalData({ ...novel, tags: tagsString });
-    setLoading(false);
-  }, [id, navigate]);
+      const tagsString = (novel.tags || []).join(", ");
+      setTitle(novel.title);
+      setAuthor(novel.author);
+      setSummary(novel.summary);
+      setTags(tagsString);
+      setCoverImage(novel.coverImage);
+      setStatus(novel.status || "serializing");
+      setChapters(novel.chapters || []);
+      setOriginalData({ title: novel.title, author: novel.author, summary: novel.summary, tags: tagsString, coverImage: novel.coverImage, status: novel.status || "serializing" });
+      setLoading(false);
+    };
+
+    if (user !== undefined) load();
+  }, [id, navigate, user]);
 
   // 監聽表單變更
   useEffect(() => {
     if (!originalData) return;
-
-    const isChanged =
+    setHasUnsavedChanges(
       title !== originalData.title ||
       author !== originalData.author ||
       summary !== originalData.summary ||
       tags !== originalData.tags ||
-      coverImage !== originalData.coverImage;
-
-    setHasUnsavedChanges(isChanged);
-  }, [title, author, summary, tags, coverImage, originalData]);
+      coverImage !== originalData.coverImage ||
+      status !== originalData.status
+    );
+  }, [title, author, summary, tags, coverImage, status, originalData]);
 
   // 離開前提醒
   useEffect(() => {
@@ -77,12 +86,10 @@ export default function EditUploadPage() {
         e.returnValue = "";
       }
     };
-
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // 處理儲存
   const handleSave = async (e) => {
     e.preventDefault();
 
@@ -91,46 +98,44 @@ export default function EditUploadPage() {
       return;
     }
 
-    const tagsArray = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => t);
-
+    const tagsArray = tags.split(",").map((t) => t.trim()).filter((t) => t);
     if (tagsArray.length === 0) {
       setError("請至少輸入一個標籤");
       return;
     }
 
-    const updateData = {
-      title: title.trim(),
-      author: author.trim(),
-      summary: summary.trim(),
-      tags: tagsArray,
-      coverImage: coverImage,
-    };
-
-    updateUploadedNovel(id, updateData);
-
-    if (firestoreId && user) {
-      await syncNovelUpdateToFirestore(firestoreId, updateData, user.uid).catch(
-        (err) => console.error("Firestore 更新失敗:", err)
-      );
-      await refreshNovels();
-    }
-
+    setSaving(true);
     setError("");
-    setHasUnsavedChanges(false);
-    alert("儲存成功！");
-    navigate("/my-uploads");
+
+    try {
+      const updateData = {
+        title: title.trim(),
+        author: author.trim(),
+        summary: summary.trim(),
+        tags: tagsArray,
+        coverImage,
+        status,
+      };
+
+      await updateNovel(id, updateData, user.uid);
+      await refreshNovels();
+
+      setHasUnsavedChanges(false);
+      alert("儲存成功！");
+      navigate("/profile?tab=works");
+    } catch (err) {
+      console.error("儲存失敗:", err);
+      setError("儲存失敗，請稍後再試");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // 處理取消
   const handleCancel = () => {
     if (hasUnsavedChanges) {
-      const confirmLeave = window.confirm("你有未儲存的變更，確定要離開嗎？");
-      if (!confirmLeave) return;
+      if (!window.confirm("你有未儲存的變更，確定要離開嗎？")) return;
     }
-    navigate("/my-uploads");
+    navigate("/profile?tab=works");
   };
 
   if (loading) {
@@ -149,27 +154,22 @@ export default function EditUploadPage() {
       <Navbar showBackButton={true} />
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* 標題 */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-dark mb-2">編輯小說</h1>
           <p className="text-gray-600">修改小說的基本資料</p>
         </div>
 
-        {/* 提示訊息 */}
         <div className="mb-6">
           <EditNotice />
         </div>
 
-        {/* 錯誤訊息 */}
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
             {error}
           </div>
         )}
 
-        {/* 表單 */}
         <form onSubmit={handleSave} className="space-y-6">
-          {/* 基本資訊 */}
           <BasicInfoForm
             title={title}
             author={author}
@@ -181,32 +181,59 @@ export default function EditUploadPage() {
             onTagsChange={setTags}
           />
 
-          {/* 封面圖片 */}
+          {/* 連載狀態 */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">連載狀態</h2>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="serializing"
+                  checked={status === "serializing"}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="accent-primary"
+                />
+                <span className="text-dark">連載中</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="completed"
+                  checked={status === "completed"}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="accent-primary"
+                />
+                <span className="text-dark">已完結</span>
+              </label>
+            </div>
+          </div>
+
           <CoverUploadSection
             onCoverChange={setCoverImage}
             onError={setError}
             initialCover={coverImage}
           />
 
-          {/* 章節資訊 */}
           <ChapterInfo chapters={chapters} />
 
-          {/* 按鈕區 */}
           <div className="flex gap-4">
             <button
               type="button"
               onClick={handleCancel}
-              className="flex-1 px-6 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 
+              className="flex-1 px-6 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300
                        transition-colors font-semibold"
             >
               取消
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 
-                       transition-colors font-semibold"
+              disabled={saving}
+              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90
+                       transition-colors font-semibold disabled:opacity-60"
             >
-              儲存
+              {saving ? "儲存中..." : "儲存"}
             </button>
           </div>
         </form>

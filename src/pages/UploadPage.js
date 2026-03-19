@@ -23,6 +23,7 @@ export default function UploadPage() {
   const [author, setAuthor] = useState("");
   const [summary, setSummary] = useState("");
   const [tags, setTags] = useState("");
+  const [status, setStatus] = useState("serializing"); // "serializing" | "completed"
 
   // 檔案狀態
   const [chapters, setChapters] = useState([]);
@@ -72,6 +73,7 @@ export default function UploadPage() {
         author: author.trim(),
         summary: summary.trim(),
         tags: tagsArray,
+        status,
         coverImage: coverImage || DEFAULT_COVER, // 沒上傳就用預設封面
         chapters: chapters,
         txtFile: null, // localStorage 版本不存檔案路徑
@@ -160,6 +162,35 @@ export default function UploadPage() {
             onSummaryChange={setSummary}
             onTagsChange={setTags}
           />
+
+          {/* 連載狀態 */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-dark mb-4">連載狀態</h2>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="serializing"
+                  checked={status === "serializing"}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="accent-primary"
+                />
+                <span className="text-dark">連載中</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="status"
+                  value="completed"
+                  checked={status === "completed"}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="accent-primary"
+                />
+                <span className="text-dark">已完結</span>
+              </label>
+            </div>
+          </div>
 
           {/* 封面上傳區塊 */}
           <CoverUploadSection

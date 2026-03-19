@@ -172,9 +172,20 @@ export default function MyWorks() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-bold text-dark mb-1 break-words">
-                  {novel.title}
-                </h3>
+                <div className="flex items-start gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-dark break-words flex-1">
+                    {novel.title}
+                  </h3>
+                  {novel.status && (
+                    <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${
+                      novel.status === "completed"
+                        ? "bg-blue-50 text-blue-600"
+                        : "bg-green-50 text-green-600"
+                    }`}>
+                      {novel.status === "completed" ? "完結" : "連載"}
+                    </span>
+                  )}
+                </div>
                 <p className="text-sm text-gray-500 mb-2">
                   作者：{novel.author}
                 </p>
@@ -217,6 +228,10 @@ export default function MyWorks() {
                     收藏
                   </div>
                   <div>上傳日期：{formatDate(novel.createdAt)}</div>
+                  <div>
+                    最後編輯：
+                    {novel.updatedAt ? formatDate(novel.updatedAt) : "尚未編輯"}
+                  </div>
                 </div>
 
                 <div className="flex gap-3">
@@ -226,6 +241,13 @@ export default function MyWorks() {
                              transition-colors text-sm font-medium"
                   >
                     查看詳情
+                  </button>
+                  <button
+                    onClick={() => navigate(`/my-uploads/edit/${novel.id}`)}
+                    className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90
+                             transition-colors text-sm font-medium"
+                  >
+                    編輯
                   </button>
                   <button
                     onClick={() => handleDeleteClick(novel)}
