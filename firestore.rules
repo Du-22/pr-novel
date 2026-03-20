@@ -55,6 +55,14 @@ service cloud.firestore {
                     && resource.data.get('isOfficial', false) == false;
     }
 
+    // ========== 章節子集合 (novels/{novelId}/chapters) ==========
+    match /novels/{novelId}/chapters/{chapterNumber} {
+      allow read: if true;
+
+      allow write: if isSignedIn()
+                   && get(/databases/$(database)/documents/novels/$(novelId)).data.authorUid == request.auth.uid;
+    }
+
 
     // ========== 評分 (ratings) ==========
     // 評分統計文件（ratingSum, ratingCount）
