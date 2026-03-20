@@ -13,6 +13,7 @@ import TagsPage from "./pages/TagsPage";
 import UploadPage from "./pages/UploadPage";
 import MyUploadsPage from "./pages/MyUploadsPage";
 import EditUploadPage from "./pages/EditUploadPage";
+import EditChapterPage from "./pages/EditChapterPage";
 import ProfilePage from "./pages/ProfilePage";
 import AuthPage from "./pages/AuthPage";
 import NotificationsPage from "./pages/NotificationsPage";
@@ -70,6 +71,7 @@ function App() {
         {/* 我的上傳管理頁 */}
         <Route path="/my-uploads" element={<MyUploadsPage />} />
         <Route path="/my-uploads/edit/:id" element={<EditUploadPage />} />
+        <Route path="/my-uploads/edit/:id/chapter/:chapterNumber" element={<EditChapterPage />} />
 
         {/* 個人中心頁 */}
         <Route path="/profile" element={<ProfilePage />} />

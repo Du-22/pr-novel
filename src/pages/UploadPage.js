@@ -11,8 +11,8 @@ import {
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
-import { uploadCoverImage, uploadNovelTxtContent } from "../firebase/storageHelper";
-import { updateNovel } from "../firebase/novels";
+import { uploadCoverImage } from "../firebase/storageHelper";
+import { uploadChapters } from "../firebase/chapters";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
@@ -30,7 +30,6 @@ export default function UploadPage() {
 
   // 檔案狀態
   const [chapters, setChapters] = useState([]);
-  const [txtContent, setTxtContent] = useState(null);
   const [coverImage, setCoverImage] = useState(null);
 
   // 提交狀態
@@ -100,11 +99,8 @@ export default function UploadPage() {
         const firestoreId = await syncUploadToFirestore(savedNovel.id, user.uid);
         if (firestoreId) {
           targetId = firestoreId;
-          // 上傳 TXT 內容到 Storage
-          if (txtContent) {
-            const txtUrl = await uploadNovelTxtContent(firestoreId, txtContent);
-            await updateNovel(firestoreId, { txtUrl }, user.uid);
-          }
+          // 上傳章節內容到 Firestore 子集合
+          await uploadChapters(firestoreId, chapters);
         }
         await refreshNovels();
       }
@@ -170,7 +166,6 @@ export default function UploadPage() {
           {/* TXT 上傳區塊 */}
           <TxtUploadSection
             onChaptersChange={setChapters}
-            onTxtContentChange={setTxtContent}
             onError={setError}
           />
 

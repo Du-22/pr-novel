@@ -8,6 +8,7 @@ import CommentsSection from "../components/CommentsSection";
 import { parseNovelChapters } from "../utils/parser";
 import { ref, getBytes } from "firebase/storage";
 import { storage } from "../firebase/config";
+import { getChapter } from "../firebase/chapters";
 
 const CHARS_PER_PAGE = 3000; // 每頁字數上限
 
@@ -43,10 +44,11 @@ function ReadingPage() {
         }
         setNovel(foundNovel);
 
-        let parsedChapters = [];
+        let currentChapterData = null;
 
         if (foundNovel.txtUrl) {
-          // 從 Storage 取得 TXT（有快取則直接使用）
+          // 舊格式：從 Storage 取得 TXT（有快取則直接使用）
+          let parsedChapters = [];
           if (txtCacheRef.current && txtCacheRef.current.novelId === id) {
             parsedChapters = txtCacheRef.current.chapters;
           } else {
@@ -56,29 +58,33 @@ function ReadingPage() {
             parsedChapters = parseNovelChapters(text);
             txtCacheRef.current = { novelId: id, chapters: parsedChapters };
           }
-        } else if (foundNovel.chapters && foundNovel.chapters.length > 0) {
-          // 舊格式：章節內容直接存在 chapters 陣列中
-          parsedChapters = foundNovel.chapters;
+          if (parsedChapters.length === 0) {
+            setError("無法解析章節");
+            return;
+          }
+          setChapters(parsedChapters);
+          currentChapterData = parsedChapters.find(
+            (ch) => ch.chapterNumber === chapterNumber
+          );
+        } else {
+          // 新格式：章節 metadata 存在小說文件，內容存在子集合
+          const chaptersMetadata = foundNovel.chapters || [];
+          if (chaptersMetadata.length === 0) {
+            setError("此小說尚無章節");
+            return;
+          }
+          setChapters(chaptersMetadata);
+          currentChapterData = await getChapter(id, chapterNumber);
         }
 
-        if (parsedChapters.length === 0) {
-          setError("無法解析章節");
-          return;
-        }
-        setChapters(parsedChapters);
-
-        // 找到目前章節
-        const chapter = parsedChapters.find(
-          (ch) => ch.chapterNumber === chapterNumber
-        );
-        if (!chapter) {
+        if (!currentChapterData) {
           setError("找不到此章節");
           return;
         }
-        setCurrentChapter(chapter);
+        setCurrentChapter(currentChapterData);
 
         // 計算分頁數
-        const pages = Math.ceil(chapter.content.length / CHARS_PER_PAGE);
+        const pages = Math.ceil((currentChapterData.content || "").length / CHARS_PER_PAGE);
         setTotalPages(pages);
 
         // 載入書籤 (如果有的話)

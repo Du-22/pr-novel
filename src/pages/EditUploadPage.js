@@ -10,6 +10,7 @@ import BasicInfoForm from "../components/upload/BasicInfoForm";
 import CoverUploadSection from "../components/upload/CoverUploadSection";
 import ChapterInfo from "../components/upload/ChapterInfo";
 import EditNotice from "../components/upload/EditNotice";
+import AddChapterSection from "../components/upload/AddChapterSection";
 import { getNovelById, updateNovel } from "../firebase/novels";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
@@ -34,6 +35,7 @@ export default function EditUploadPage() {
   const [error, setError] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState(null);
+  const [isNewFormat, setIsNewFormat] = useState(false);
 
   // 載入小說資料（從 Firestore）
   useEffect(() => {
@@ -61,6 +63,7 @@ export default function EditUploadPage() {
       setCoverImage(novel.coverImage);
       setStatus(novel.status || "serializing");
       setChapters(novel.chapters || []);
+      setIsNewFormat(!novel.txtUrl);
       setOriginalData({ title: novel.title, author: novel.author, translator: novel.translator || "", summary: novel.summary, tags: tagsString, coverImage: novel.coverImage, status: novel.status || "serializing" });
       setLoading(false);
     };
@@ -229,7 +232,24 @@ export default function EditUploadPage() {
             initialCover={coverImage}
           />
 
-          <ChapterInfo chapters={chapters} />
+          <ChapterInfo
+            chapters={chapters}
+            novelId={id}
+            isNewFormat={isNewFormat}
+            onChapterDeleted={setChapters}
+          />
+
+          {isNewFormat ? (
+            <AddChapterSection
+              novelId={id}
+              existingChapters={chapters}
+              onChaptersUpdated={setChapters}
+            />
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
+              此小說使用舊格式，暫不支援新增章節。待遷移功能完成後即可使用。
+            </div>
+          )}
 
           <div className="flex gap-4">
             <button
