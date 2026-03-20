@@ -67,14 +67,22 @@ function ReadingPage() {
             (ch) => ch.chapterNumber === chapterNumber
           );
         } else {
-          // 新格式：章節 metadata 存在小說文件，內容存在子集合
-          const chaptersMetadata = foundNovel.chapters || [];
-          if (chaptersMetadata.length === 0) {
+          const chaptersData = foundNovel.chapters || [];
+          if (chaptersData.length === 0) {
             setError("此小說尚無章節");
             return;
           }
-          setChapters(chaptersMetadata);
+          setChapters(chaptersData);
+
+          // 新格式（Phase 18+）：從子集合讀取
           currentChapterData = await getChapter(id, chapterNumber);
+
+          // 最舊格式 fallback（Phase 18 以前）：內容直接在 chapters 陣列裡
+          if (!currentChapterData) {
+            currentChapterData = chaptersData.find(
+              (ch) => ch.chapterNumber === chapterNumber
+            );
+          }
         }
 
         if (!currentChapterData) {
