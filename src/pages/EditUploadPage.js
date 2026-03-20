@@ -15,6 +15,10 @@ import { getNovelById, updateNovel } from "../firebase/novels";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
 import { uploadCoverImage } from "../firebase/storageHelper";
+import { uploadChapters } from "../firebase/chapters";
+import { parseNovelChapters } from "../utils/parser";
+import { ref, getBytes } from "firebase/storage";
+import { storage } from "../firebase/config";
 
 export default function EditUploadPage() {
   const { id } = useParams();
@@ -36,6 +40,9 @@ export default function EditUploadPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState(null);
   const [isNewFormat, setIsNewFormat] = useState(false);
+  const [hasTxtUrl, setHasTxtUrl] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationError, setMigrationError] = useState("");
 
   // 載入小說資料（從 Firestore）
   useEffect(() => {
@@ -63,7 +70,10 @@ export default function EditUploadPage() {
       setCoverImage(novel.coverImage);
       setStatus(novel.status || "serializing");
       setChapters(novel.chapters || []);
-      setIsNewFormat(!novel.txtUrl);
+      setHasTxtUrl(!!novel.txtUrl);
+      // 新格式：無 txtUrl 且 chapters 裡沒有 content（子集合架構）
+      const chaptersHaveContent = (novel.chapters || []).some((ch) => ch.content);
+      setIsNewFormat(!novel.txtUrl && !chaptersHaveContent);
       setOriginalData({ title: novel.title, author: novel.author, translator: novel.translator || "", summary: novel.summary, tags: tagsString, coverImage: novel.coverImage, status: novel.status || "serializing" });
       setLoading(false);
     };
@@ -96,6 +106,54 @@ export default function EditUploadPage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // ========== 舊格式遷移 ==========
+  const handleMigrate = async () => {
+    setMigrating(true);
+    setMigrationError("");
+    try {
+      let chaptersToMigrate;
+
+      if (hasTxtUrl) {
+        // Phase 17 格式：從 Storage 下載並解析
+        const storageRef = ref(storage, `novels/${id}/content.txt`);
+        const bytes = await getBytes(storageRef);
+        const text = new TextDecoder("utf-8").decode(bytes);
+        chaptersToMigrate = parseNovelChapters(text);
+        if (chaptersToMigrate.length === 0) {
+          throw new Error("無法解析章節，請確認 TXT 格式");
+        }
+      } else {
+        // Phase 17 以前：chapters 陣列本身已有內容，直接使用
+        chaptersToMigrate = chapters.filter((ch) => ch.content);
+        if (chaptersToMigrate.length === 0) {
+          throw new Error("找不到可遷移的章節內容");
+        }
+      }
+
+      // 寫入子集合
+      await uploadChapters(id, chaptersToMigrate);
+
+      // 更新小說文件：清除 txtUrl，chapters 只保留 metadata
+      const chaptersMetadata = chaptersToMigrate.map(({ chapterNumber, title, wordCount, isSpecial }) => ({
+        chapterNumber,
+        title,
+        wordCount: wordCount || 0,
+        isSpecial: isSpecial || false,
+      }));
+      await updateNovel(id, { txtUrl: null, chapters: chaptersMetadata }, user.uid);
+
+      setChapters(chaptersMetadata);
+      setHasTxtUrl(false);
+      setIsNewFormat(true);
+      await refreshNovels();
+    } catch (err) {
+      console.error("遷移失敗:", err);
+      setMigrationError("遷移失敗：" + err.message);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -246,8 +304,23 @@ export default function EditUploadPage() {
               onChaptersUpdated={setChapters}
             />
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-800">
-              此小說使用舊格式，暫不支援新增章節。待遷移功能完成後即可使用。
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <h3 className="font-semibold text-yellow-800 mb-2">此小說使用舊格式</h3>
+              <p className="text-sm text-yellow-700 mb-4">
+                遷移後可解鎖章節管理功能（新增、編輯、刪除章節）。
+                遷移過程會將 Storage 中的 TXT 解析並寫入 Firestore，原始檔案不會被刪除。
+              </p>
+              {migrationError && (
+                <p className="text-sm text-red-600 mb-3">{migrationError}</p>
+              )}
+              <button
+                type="button"
+                onClick={handleMigrate}
+                disabled={migrating}
+                className="px-5 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors disabled:opacity-60 text-sm font-medium"
+              >
+                {migrating ? "遷移中..." : "一鍵遷移到新格式"}
+              </button>
             </div>
           )}
 
