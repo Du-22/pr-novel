@@ -11,16 +11,18 @@ import {
   doc,
   getDocs,
   setDoc,
-  deleteDoc,
   updateDoc,
   runTransaction,
   arrayUnion,
   arrayRemove,
   query,
   orderBy,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { createNotification } from "../firebase/notifications";
+import { submitReport } from "../firebase/reports";
+import { ADMIN_UID } from "../config/adminConfig";
 
 const MAX_LENGTH = 300;
 
@@ -98,6 +100,13 @@ export default function CommentsSection({
 
   // 排序：'time' | 'likes'
   const [sortBy, setSortBy] = useState("likes");
+
+  // 檢舉狀態
+  const [reportingComment, setReportingComment] = useState(null);
+  const [reportReason, setReportReason] = useState("spam");
+  const [reportDetail, setReportDetail] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   // chapterNumber → title 對照表
   const chapterTitleMap = useMemo(() => {
@@ -279,11 +288,14 @@ export default function CommentsSection({
     }
   };
 
-  // ========== 刪除留言 ==========
+  // ========== 刪除留言（軟刪除） ==========
   const handleDelete = async (commentId) => {
     if (!window.confirm("確定要刪除這則留言嗎？")) return;
     try {
-      await deleteDoc(doc(db, itemsCol, commentId));
+      await updateDoc(doc(db, itemsCol, commentId), {
+        deleted: true,
+        deletedAt: serverTimestamp(),
+      });
       await loadComments();
     } catch (err) {
       console.error("刪除留言失敗:", err);
@@ -343,6 +355,43 @@ export default function CommentsSection({
       console.error("按讚失敗:", err);
       // 失敗時回滾（重新載入）
       await loadComments();
+    }
+  };
+
+  // ========== 開啟/送出檢舉 ==========
+  const openReport = (comment) => {
+    setReportingComment(comment);
+    setReportReason("spam");
+    setReportDetail("");
+    setReportSuccess(false);
+  };
+
+  const handleReport = async () => {
+    if (!reportingComment || reportSubmitting) return;
+    setReportSubmitting(true);
+    try {
+      await submitReport({
+        reportedCommentId: reportingComment.id,
+        reportedContent: reportingComment.content,
+        reportedAuthorName: reportingComment.authorName,
+        reportedAuthorUid: reportingComment.authorUid,
+        reporterUid: user.uid,
+        reporterName: user.displayName || user.email.split("@")[0],
+        novelId,
+        novelTitle,
+        chapterNumber: reportingComment.chapterNumber,
+        reason: reportReason,
+        detail: reportDetail,
+      });
+      setReportSuccess(true);
+      setTimeout(() => {
+        setReportingComment(null);
+        setReportSuccess(false);
+      }, 2000);
+    } catch (err) {
+      console.error("檢舉失敗:", err);
+    } finally {
+      setReportSubmitting(false);
     }
   };
 
@@ -490,71 +539,85 @@ export default function CommentsSection({
               <div key={comment.id}>
                 {/* ---- 第一層留言 ---- */}
                 <div className="flex gap-3">
-                  <Avatar name={comment.authorName} uid={comment.authorUid} />
+                  <Avatar name={comment.authorName} uid={comment.deleted ? undefined : comment.authorUid} />
                   <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <FloorBadge floor={comment.floorNumber} />
-                        <span className="font-medium text-dark text-sm">
-                          {comment.authorName}
-                        </span>
-                        {chapterNumber === null && (
-                          <span
-                            className={`text-xs px-1.5 py-0.5 rounded ${
-                              comment.chapterNumber
-                                ? "text-primary bg-primary/10"
-                                : "text-gray-400 bg-gray-100"
-                            }`}
-                          >
-                            {comment.chapterNumber
-                              ? `於 ${chapterTitleMap[comment.chapterNumber] || `第${comment.chapterNumber}章`} 留言`
-                              : "於 目錄頁 留言"}
-                          </span>
-                        )}
-                        <span className="text-xs text-gray-400">
-                          {formatDate(comment.createdAt)}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {/* 按讚 */}
-                        <button
-                          onClick={() => handleLike(comment)}
-                          className={`flex items-center gap-1 text-xs transition-colors ${
-                            user && comment.likedBy?.includes(user.uid)
-                              ? "text-primary font-medium"
-                              : "text-gray-400 hover:text-primary"
-                          }`}
-                        >
-                          <span>
-                            {user && comment.likedBy?.includes(user.uid)
-                              ? "♥"
-                              : "♡"}
-                          </span>
-                          {comment.likedBy?.length > 0 && (
-                            <span>{comment.likedBy.length}</span>
-                          )}
-                        </button>
-                        {user && (
-                          <button
-                            onClick={() => handleReplyClick(comment)}
-                            className="text-xs text-gray-400 hover:text-primary transition-colors"
-                          >
-                            回覆
-                          </button>
-                        )}
-                        {user?.uid === comment.authorUid && (
-                          <button
-                            onClick={() => handleDelete(comment.id)}
-                            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                          >
-                            刪除
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <p className="text-gray-700 text-sm leading-relaxed break-words">
-                      {comment.content}
-                    </p>
+                    {comment.deleted ? (
+                      <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <FloorBadge floor={comment.floorNumber} />
+                            <span className="font-medium text-dark text-sm">
+                              {comment.authorName}
+                            </span>
+                            {chapterNumber === null && (
+                              <span
+                                className={`text-xs px-1.5 py-0.5 rounded ${
+                                  comment.chapterNumber
+                                    ? "text-primary bg-primary/10"
+                                    : "text-gray-400 bg-gray-100"
+                                }`}
+                              >
+                                {comment.chapterNumber
+                                  ? `於 ${chapterTitleMap[comment.chapterNumber] || `第${comment.chapterNumber}章`} 留言`
+                                  : "於 目錄頁 留言"}
+                              </span>
+                            )}
+                            <span className="text-xs text-gray-400">
+                              {formatDate(comment.createdAt)}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {/* 按讚 */}
+                            <button
+                              onClick={() => handleLike(comment)}
+                              className={`flex items-center gap-1 text-xs transition-colors ${
+                                user && comment.likedBy?.includes(user.uid)
+                                  ? "text-primary font-medium"
+                                  : "text-gray-400 hover:text-primary"
+                              }`}
+                            >
+                              <span>
+                                {user && comment.likedBy?.includes(user.uid)
+                                  ? "♥"
+                                  : "♡"}
+                              </span>
+                              {comment.likedBy?.length > 0 && (
+                                <span>{comment.likedBy.length}</span>
+                              )}
+                            </button>
+                            {user && (
+                              <button
+                                onClick={() => handleReplyClick(comment)}
+                                className="text-xs text-gray-400 hover:text-primary transition-colors"
+                              >
+                                回覆
+                              </button>
+                            )}
+                            {(user?.uid === comment.authorUid || user?.uid === ADMIN_UID) && (
+                              <button
+                                onClick={() => handleDelete(comment.id)}
+                                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                              >
+                                刪除
+                              </button>
+                            )}
+                            {user && user.uid !== comment.authorUid && (
+                              <button
+                                onClick={() => openReport(comment)}
+                                className="text-xs text-gray-400 hover:text-orange-500 transition-colors"
+                              >
+                                檢舉
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed break-words">
+                          {comment.content}
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -563,58 +626,72 @@ export default function CommentsSection({
                   <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
                     {visibleReplies.map((reply) => (
                       <div key={reply.id} className="flex gap-3">
-                        <Avatar name={reply.authorName} uid={reply.authorUid} size="w-7 h-7" />
+                        <Avatar name={reply.authorName} uid={reply.deleted ? undefined : reply.authorUid} size="w-7 h-7" />
                         <div className="flex-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <FloorBadge floor={reply.floorNumber} />
-                              <span className="font-medium text-dark text-sm">
-                                {reply.authorName}
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                {formatDate(reply.createdAt)}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              {/* 按讚 */}
-                              <button
-                                onClick={() => handleLike(reply)}
-                                className={`flex items-center gap-1 text-xs transition-colors ${
-                                  user && reply.likedBy?.includes(user.uid)
-                                    ? "text-primary font-medium"
-                                    : "text-gray-400 hover:text-primary"
-                                }`}
-                              >
-                                <span>
-                                  {user && reply.likedBy?.includes(user.uid)
-                                    ? "♥"
-                                    : "♡"}
-                                </span>
-                                {reply.likedBy?.length > 0 && (
-                                  <span>{reply.likedBy.length}</span>
-                                )}
-                              </button>
-                              {user && (
-                                <button
-                                  onClick={() => handleReplyClick(reply)}
-                                  className="text-xs text-gray-400 hover:text-primary transition-colors"
-                                >
-                                  回覆
-                                </button>
-                              )}
-                              {user?.uid === reply.authorUid && (
-                                <button
-                                  onClick={() => handleDelete(reply.id)}
-                                  className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                                >
-                                  刪除
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-gray-700 text-sm leading-relaxed break-words">
-                            {reply.content}
-                          </p>
+                          {reply.deleted ? (
+                            <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                          ) : (
+                            <>
+                              <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <FloorBadge floor={reply.floorNumber} />
+                                  <span className="font-medium text-dark text-sm">
+                                    {reply.authorName}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {formatDate(reply.createdAt)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {/* 按讚 */}
+                                  <button
+                                    onClick={() => handleLike(reply)}
+                                    className={`flex items-center gap-1 text-xs transition-colors ${
+                                      user && reply.likedBy?.includes(user.uid)
+                                        ? "text-primary font-medium"
+                                        : "text-gray-400 hover:text-primary"
+                                    }`}
+                                  >
+                                    <span>
+                                      {user && reply.likedBy?.includes(user.uid)
+                                        ? "♥"
+                                        : "♡"}
+                                    </span>
+                                    {reply.likedBy?.length > 0 && (
+                                      <span>{reply.likedBy.length}</span>
+                                    )}
+                                  </button>
+                                  {user && (
+                                    <button
+                                      onClick={() => handleReplyClick(reply)}
+                                      className="text-xs text-gray-400 hover:text-primary transition-colors"
+                                    >
+                                      回覆
+                                    </button>
+                                  )}
+                                  {(user?.uid === reply.authorUid || user?.uid === ADMIN_UID) && (
+                                    <button
+                                      onClick={() => handleDelete(reply.id)}
+                                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                                    >
+                                      刪除
+                                    </button>
+                                  )}
+                                  {user && user.uid !== reply.authorUid && (
+                                    <button
+                                      onClick={() => openReport(reply)}
+                                      className="text-xs text-gray-400 hover:text-orange-500 transition-colors"
+                                    >
+                                      檢舉
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="text-gray-700 text-sm leading-relaxed break-words">
+                                {reply.content}
+                              </p>
+                            </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -712,6 +789,95 @@ export default function CommentsSection({
               收起留言
             </button>
           )}
+        </div>
+      )}
+
+      {/* ========== 檢舉對話框 ========== */}
+      {reportingComment && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => !reportSubmitting && setReportingComment(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {reportSuccess ? (
+              <div className="text-center py-4">
+                <p className="text-green-600 font-semibold text-lg">已成功送出檢舉</p>
+                <p className="text-gray-500 text-sm mt-1">我們會盡快審查此留言</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-dark mb-1">檢舉留言</h3>
+                <p className="text-sm text-gray-500 mb-4 bg-gray-50 p-3 rounded-lg break-words">
+                  「{reportingComment.content.slice(0, 80)}{reportingComment.content.length > 80 ? "..." : ""}」
+                </p>
+
+                {/* 檢舉原因 */}
+                <div className="mb-4">
+                  <p className="text-sm font-medium text-dark mb-2">檢舉原因</p>
+                  <div className="space-y-2">
+                    {[
+                      { value: "spam", label: "垃圾訊息" },
+                      { value: "inappropriate", label: "不當內容" },
+                      { value: "harassment", label: "騷擾行為" },
+                      { value: "other", label: "其他" },
+                    ].map((option) => (
+                      <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="reportReason"
+                          value={option.value}
+                          checked={reportReason === option.value}
+                          onChange={(e) => setReportReason(e.target.value)}
+                          className="accent-primary"
+                        />
+                        <span className="text-sm text-dark">{option.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 詳細說明 */}
+                <div className="mb-5">
+                  <p className="text-sm font-medium text-dark mb-1">
+                    詳細說明
+                    <span className="text-gray-400 font-normal ml-1">（選填）</span>
+                  </p>
+                  <textarea
+                    value={reportDetail}
+                    onChange={(e) => setReportDetail(e.target.value)}
+                    placeholder="請描述詳細情況..."
+                    rows={3}
+                    maxLength={300}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none text-sm
+                             focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  />
+                  <p className="text-xs text-gray-400 text-right mt-0.5">
+                    {reportDetail.length} / 300
+                  </p>
+                </div>
+
+                {/* 按鈕 */}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setReportingComment(null)}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-dark rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={handleReport}
+                    disabled={reportSubmitting}
+                    className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium disabled:opacity-60"
+                  >
+                    {reportSubmitting ? "送出中..." : "送出檢舉"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>

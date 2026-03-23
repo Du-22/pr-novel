@@ -18,6 +18,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isSignedIn() && request.auth.uid == "gFwOsNadC9MoPzPdrn85H09AtVt2";
+    }
+
 
     // ========== 收藏 (favorites) ==========
     match /favorites/{userId}/novels/{novelId} {
@@ -47,8 +51,10 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.authorUid == request.auth.uid;
 
+      // 作者可更新所有欄位；任何已登入使用者可更新 stats（閱讀數/收藏數）
       allow update: if isSignedIn()
-                    && resource.data.authorUid == request.auth.uid;
+                    && (resource.data.authorUid == request.auth.uid
+                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']));
 
       allow delete: if isSignedIn()
                     && resource.data.authorUid == request.auth.uid
@@ -96,7 +102,7 @@ service cloud.firestore {
       allow update: if isSignedIn();
 
       allow delete: if isSignedIn()
-                    && resource.data.authorUid == request.auth.uid;
+                    && (resource.data.authorUid == request.auth.uid || isAdmin());
     }
 
 
@@ -113,6 +119,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow write: if isOwner(userId);
+    }
+
+
+    // ========== 檢舉 (reports) ==========
+    match /reports/{reportId} {
+      // 登入使用者可提交檢舉；讀取/修改/刪除只有後端（Cloud Functions）可操作
+      allow create: if isSignedIn();
+      allow read, update, delete: if false;
     }
 
 
