@@ -71,6 +71,19 @@ export default function NotificationsPage() {
         </>
       );
     }
+    if (n.type === "report") {
+      return (
+        <>
+          <span className="font-semibold text-dark">{n.fromUserName}</span>
+          {" 檢舉了《"}
+          <span className="font-semibold text-primary">{n.novelTitle || "某本小說"}</span>
+          {"》的一則留言"}
+          {n.reason && (
+            <span className="text-orange-600"> — {n.reason}</span>
+          )}
+        </>
+      );
+    }
     return "有新通知";
   };
 
@@ -110,9 +123,11 @@ export default function NotificationsPage() {
               >
                 {/* 圖示 */}
                 <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base ${
-                  n.type === "reply" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-500"
+                  n.type === "reply" ? "bg-blue-100 text-blue-600"
+                  : n.type === "report" ? "bg-orange-100 text-orange-500"
+                  : "bg-pink-100 text-pink-500"
                 }`}>
-                  {n.type === "reply" ? "↩" : "♥"}
+                  {n.type === "reply" ? "↩" : n.type === "report" ? "⚑" : "♥"}
                 </div>
 
                 {/* 內容 */}

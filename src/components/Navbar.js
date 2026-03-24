@@ -3,7 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { logout } from "../firebase/auth";
 import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
-import { getNotifications, markAllNotificationsAsRead } from "../firebase/notifications";
+import {
+  getNotifications,
+  markAllNotificationsAsRead,
+} from "../firebase/notifications";
 
 const Navbar = ({ showBackButton = false }) => {
   const navigate = useNavigate();
@@ -21,13 +24,19 @@ const Navbar = ({ showBackButton = false }) => {
   const formatNotifDate = (val) => {
     if (!val) return "";
     try {
-      const date = typeof val.toDate === "function" ? val.toDate() : new Date(val);
+      const date =
+        typeof val.toDate === "function" ? val.toDate() : new Date(val);
       return `${date.getMonth() + 1}/${String(date.getDate()).padStart(2, "0")}`;
-    } catch { return ""; }
+    } catch {
+      return "";
+    }
   };
 
   const handleOpenNotifications = async () => {
-    if (showNotifications) { setShowNotifications(false); return; }
+    if (showNotifications) {
+      setShowNotifications(false);
+      return;
+    }
     setShowNotifications(true);
     setNotifLoading(true);
     const data = await getNotifications(user.uid);
@@ -94,8 +103,13 @@ const Navbar = ({ showBackButton = false }) => {
             )}
 
             {/* Logo */}
-            <Link to="/" className="flex items-center">
-              <span className="text-2xl font-bold text-white">📚 PR小說網</span>
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/navbar-logo.png"
+                alt="PR小說網"
+                className="w-12 h-12 rounded-lg object-contain"
+              />
+              <span className="text-2xl font-bold text-white">PR小說網</span>
             </Link>
           </div>
 
@@ -143,18 +157,43 @@ const Navbar = ({ showBackButton = false }) => {
               aria-label="選單"
             >
               {showMobileMenu ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
                 </svg>
               )}
             </button>
             {/* 搜尋區 */}
             {showSearch ? (
-              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
+              <form
+                onSubmit={handleSearchSubmit}
+                className="flex items-center gap-2"
+              >
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -167,7 +206,10 @@ const Navbar = ({ showBackButton = false }) => {
                 />
                 <button
                   type="button"
-                  onClick={() => { setShowSearch(false); setSearchQuery(""); }}
+                  onClick={() => {
+                    setShowSearch(false);
+                    setSearchQuery("");
+                  }}
                   className="text-white hover:text-white/70 transition-colors"
                 >
                   ✕
@@ -204,12 +246,25 @@ const Navbar = ({ showBackButton = false }) => {
                   className="relative text-white hover:text-pink transition-colors"
                   aria-label="通知"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                    />
                   </svg>
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full
-                                     flex items-center justify-center text-white text-[10px] font-bold">
+                    <span
+                      className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full
+                                     flex items-center justify-center text-white text-[10px] font-bold"
+                    >
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   )}
@@ -218,11 +273,16 @@ const Navbar = ({ showBackButton = false }) => {
                 {/* 通知下拉選單 */}
                 {showNotifications && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowNotifications(false)}
+                    />
                     <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 overflow-hidden">
                       {/* 標題列 */}
                       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-                        <span className="font-semibold text-dark text-sm">通知</span>
+                        <span className="font-semibold text-dark text-sm">
+                          通知
+                        </span>
                         <Link
                           to="/notifications"
                           onClick={() => setShowNotifications(false)}
@@ -235,43 +295,66 @@ const Navbar = ({ showBackButton = false }) => {
                       {/* 通知列表 */}
                       <div className="max-h-96 overflow-y-auto">
                         {notifLoading ? (
-                          <p className="text-center text-gray-400 text-sm py-6">載入中...</p>
+                          <p className="text-center text-gray-400 text-sm py-6">
+                            載入中...
+                          </p>
                         ) : notifications.length === 0 ? (
-                          <p className="text-center text-gray-400 text-sm py-6">目前沒有通知</p>
+                          <p className="text-center text-gray-400 text-sm py-6">
+                            目前沒有通知
+                          </p>
                         ) : (
                           notifications.slice(0, 10).map((n) => (
                             <div
                               key={n.id}
-                              onClick={() => { navigate(`/novel/${n.novelId}`); setShowNotifications(false); }}
+                              onClick={() => {
+                                navigate(`/novel/${n.novelId}`);
+                                setShowNotifications(false);
+                              }}
                               className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-light transition-colors border-b border-gray-50 ${
                                 !n.read ? "bg-primary/5" : ""
                               }`}
                             >
                               {/* 類型圖示 */}
-                              <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${
-                                n.type === "reply" ? "bg-blue-100 text-blue-600" : "bg-pink-100 text-pink-500"
-                              }`}>
+                              <div
+                                className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${
+                                  n.type === "reply"
+                                    ? "bg-blue-100 text-blue-600"
+                                    : "bg-pink-100 text-pink-500"
+                                }`}
+                              >
                                 {n.type === "reply" ? "↩" : "♥"}
                               </div>
 
                               {/* 內容 */}
                               <div className="flex-1 min-w-0">
                                 <p className="text-xs text-gray-700 leading-relaxed">
-                                  <span className="font-semibold text-dark">{n.fromUserName}</span>
-                                  {n.type === "reply" ? " 回覆了你的留言" : " 對你的留言按讚"}
+                                  <span className="font-semibold text-dark">
+                                    {n.fromUserName}
+                                  </span>
+                                  {n.type === "reply"
+                                    ? " 回覆了你的留言"
+                                    : " 對你的留言按讚"}
                                 </p>
                                 {n.novelTitle && (
-                                  <p className="text-xs text-primary truncate">《{n.novelTitle}》</p>
+                                  <p className="text-xs text-primary truncate">
+                                    《{n.novelTitle}》
+                                  </p>
                                 )}
                                 {n.commentContent && (
-                                  <p className="text-xs text-gray-400 truncate">「{n.commentContent}」</p>
+                                  <p className="text-xs text-gray-400 truncate">
+                                    「{n.commentContent}」
+                                  </p>
                                 )}
                               </div>
 
                               {/* 日期 + 未讀點 */}
                               <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                <span className="text-xs text-gray-400">{formatNotifDate(n.createdAt)}</span>
-                                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-primary" />}
+                                <span className="text-xs text-gray-400">
+                                  {formatNotifDate(n.createdAt)}
+                                </span>
+                                {!n.read && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                                )}
                               </div>
                             </div>
                           ))
@@ -406,24 +489,39 @@ const Navbar = ({ showBackButton = false }) => {
       {showMobileMenu && (
         <div className="md:hidden bg-primary/95 border-t border-white/20">
           <div className="container mx-auto px-4 py-2 flex flex-col">
-            <Link to="/" onClick={() => setShowMobileMenu(false)}
-              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+            <Link
+              to="/"
+              onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors"
+            >
               首頁
             </Link>
-            <Link to="/tags" onClick={() => setShowMobileMenu(false)}
-              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+            <Link
+              to="/tags"
+              onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors"
+            >
               標籤
             </Link>
-            <Link to="/ranking" onClick={() => setShowMobileMenu(false)}
-              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+            <Link
+              to="/ranking"
+              onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors"
+            >
               排行榜
             </Link>
-            <Link to="/upload" onClick={() => setShowMobileMenu(false)}
-              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors">
+            <Link
+              to="/upload"
+              onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white border-b border-white/10 hover:text-pink transition-colors"
+            >
               上傳
             </Link>
-            <Link to="/profile" onClick={() => setShowMobileMenu(false)}
-              className="py-3 text-white hover:text-pink transition-colors">
+            <Link
+              to="/profile"
+              onClick={() => setShowMobileMenu(false)}
+              className="py-3 text-white hover:text-pink transition-colors"
+            >
               個人中心
             </Link>
           </div>
