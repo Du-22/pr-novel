@@ -9,6 +9,7 @@ import { useAuth } from "../hooks/useAuth";
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   setDoc,
   updateDoc,
@@ -83,6 +84,7 @@ export default function CommentsSection({
   const [topLevelComments, setTopLevelComments] = useState([]);
   const [replyMap, setReplyMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [userNameMap, setUserNameMap] = useState({}); // { uid: displayName }
 
   // 折疊狀態
   const [showAllTopLevel, setShowAllTopLevel] = useState(false);
@@ -157,6 +159,17 @@ export default function CommentsSection({
 
       setTopLevelComments(topLevel);
       setReplyMap(map);
+
+      // 批次取得最新暱稱（用於暱稱更改後同步顯示）
+      const uids = [...new Set(all.filter((c) => c.authorUid).map((c) => c.authorUid))];
+      if (uids.length > 0) {
+        const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, "users", uid))));
+        const nameMap = {};
+        snaps.forEach((snap) => {
+          if (snap.exists()) nameMap[snap.id] = snap.data().displayName;
+        });
+        setUserNameMap(nameMap);
+      }
     } catch (err) {
       console.error("載入評論失敗:", err);
     } finally {
@@ -456,6 +469,8 @@ export default function CommentsSection({
     topLevelComments.length +
     Object.values(replyMap).reduce((sum, arr) => sum + arr.length, 0);
 
+  // 取得最新暱稱（有 userNameMap 就用最新的，否則 fallback 到留言當時的名稱）
+  const getDisplayName = (comment) => userNameMap[comment.authorUid] || comment.authorName;
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -582,7 +597,7 @@ export default function CommentsSection({
               <div key={comment.id} id={`comment-${comment.id}`}>
                 {/* ---- 第一層留言 ---- */}
                 <div className="flex gap-3">
-                  <Avatar name={comment.authorName} uid={comment.deleted ? undefined : comment.authorUid} />
+                  <Avatar name={getDisplayName(comment)} uid={comment.deleted ? undefined : comment.authorUid} />
                   <div className="flex-1">
                     {comment.deleted ? (
                       <div>
@@ -619,7 +634,7 @@ export default function CommentsSection({
                           <div className="flex items-center gap-2 flex-wrap">
                             <FloorBadge floor={comment.floorNumber} />
                             <span className="font-medium text-dark text-sm">
-                              {comment.authorName}
+                              {getDisplayName(comment)}
                             </span>
                             {chapterNumber === null && (
                               <span
@@ -696,7 +711,7 @@ export default function CommentsSection({
                   <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
                     {visibleReplies.map((reply) => (
                       <div key={reply.id} id={`comment-${reply.id}`} className="flex gap-3">
-                        <Avatar name={reply.authorName} uid={reply.deleted ? undefined : reply.authorUid} size="w-7 h-7" />
+                        <Avatar name={getDisplayName(reply)} uid={reply.deleted ? undefined : reply.authorUid} size="w-7 h-7" />
                         <div className="flex-1">
                           {reply.deleted ? (
                             <div>
@@ -733,7 +748,7 @@ export default function CommentsSection({
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <FloorBadge floor={reply.floorNumber} />
                                   <span className="font-medium text-dark text-sm">
-                                    {reply.authorName}
+                                    {getDisplayName(reply)}
                                   </span>
                                   <span className="text-xs text-gray-400">
                                     {formatDate(reply.createdAt)}

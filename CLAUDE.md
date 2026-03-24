@@ -257,6 +257,18 @@ novels/{novelId}/
 5. 更新 `README.md`（重大功能才需要）
 6. **最後才執行 `git commit` + `git push`**
 
+### Phase 開始前的規劃確認
+
+> **在開始任何新 Phase 之前，必須先與使用者討論並確認該 Phase 的完整規劃範圍。**
+> 列出預計要做的所有功能，等使用者明確確認後才開始動工。
+> 不可自行決定 Phase 的內容範圍。
+
+### Commit 預設行為
+
+> **在執行 commit 之前，必須先詢問使用者是否準備好 commit（讓使用者有機會先測試）。**
+> 使用者確認後，一次完整執行：`git commit` → `git push` → `gh pr create` → `gh pr merge`
+> 除非使用者明確說「不要 push」或「不要合併」，才只執行對應步驟。
+
 ---
 
 ## 🧪 功能測試清單

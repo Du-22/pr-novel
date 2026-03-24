@@ -18,17 +18,17 @@ export default function ReadingHistory() {
   const loadReadingHistory = async () => {
     setLoading(true);
 
-    const history = getAllReadHistory();
+    const history = await getAllReadHistory();
     const allNovels = getAllNovels();
 
     // 將閱讀記錄轉換成陣列並按最後閱讀時間排序
-    const historyArray = Object.keys(history)
-      .map((novelId) => {
+    const historyArray = (await Promise.all(
+      Object.keys(history).map(async (novelId) => {
         const novel = allNovels.find((n) => n.id === novelId);
         if (!novel) return null;
 
         const record = history[novelId];
-        const bookmark = getBookmark(novelId);
+        const bookmark = await getBookmark(novelId);
 
         return {
           novel,
@@ -37,8 +37,7 @@ export default function ReadingHistory() {
           bookmark,
         };
       })
-      .filter((item) => item !== null)
-      .sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
+    )).filter(Boolean).sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
 
     // 載入每本小說的章節資訊
     const listWithChapters = await Promise.all(
