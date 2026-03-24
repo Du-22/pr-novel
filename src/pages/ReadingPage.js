@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { getNovelById } from "../utils/novelsHelper";
-import { saveBookmark, getBookmark } from "../utils/bookmarkManager";
 import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
 import { parseNovelChapters } from "../utils/parser";
@@ -95,18 +94,7 @@ function ReadingPage() {
         const pages = Math.ceil((currentChapterData.content || "").length / CHARS_PER_PAGE);
         setTotalPages(pages);
 
-        // 載入書籤 (如果有的話)
-        const bookmark = await getBookmark(id);
-        if (
-          bookmark &&
-          bookmark.chapter === chapterNumber &&
-          bookmark.page <= pages
-        ) {
-          setCurrentPage(bookmark.page);
-        } else {
-          setCurrentPage(1);
-        }
-
+        setCurrentPage(1);
         setLoading(false);
       } catch (err) {
         console.error("載入失敗:", err);
@@ -118,43 +106,12 @@ function ReadingPage() {
     loadNovel();
   }, [id, chapterNumber]);
 
-  // ========== 標記為已讀 ==========
+  // ========== 進入章節時立即標記為已讀 ==========
   useEffect(() => {
     if (currentChapter) {
-      // 延遲 2 秒後標記為已讀 (避免誤觸)
-      const timer = setTimeout(() => {
-        markChapterAsRead(id, chapterNumber).catch(() => {});
-      }, 2000);
-
-      return () => clearTimeout(timer);
+      markChapterAsRead(id, chapterNumber).catch(() => {});
     }
   }, [id, chapterNumber, currentChapter]);
-
-  // ========== 自動儲存書籤 (每 30 秒) ==========
-  useEffect(() => {
-    if (!currentChapter) return;
-
-    const interval = setInterval(() => {
-      saveBookmark(id, chapterNumber, currentPage).catch(() => {});
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [id, chapterNumber, currentPage, currentChapter]);
-
-  // ========== 離開頁面時儲存書籤 ==========
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      if (currentChapter) {
-        saveBookmark(id, chapterNumber, currentPage);
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      handleBeforeUnload();
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, [id, chapterNumber, currentPage, currentChapter]);
 
   // ========== 取得當前頁內容 ==========
   const getCurrentPageContent = () => {
@@ -174,7 +131,6 @@ function ReadingPage() {
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
-    saveBookmark(id, chapterNumber, newPage).catch(() => {});
   };
 
   // ========== 切換章節 ==========

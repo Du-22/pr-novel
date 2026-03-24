@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAllReadHistory } from "../../utils/readHistoryManager";
-import { getBookmark } from "../../utils/bookmarkManager";
 import { getAllNovels } from "../../utils/novelsHelper";
 import { parseNovelChapters } from "../../utils/parser";
 
@@ -22,22 +21,20 @@ export default function ReadingHistory() {
     const allNovels = getAllNovels();
 
     // 將閱讀記錄轉換成陣列並按最後閱讀時間排序
-    const historyArray = (await Promise.all(
-      Object.keys(history).map(async (novelId) => {
+    const historyArray = Object.keys(history)
+      .map((novelId) => {
         const novel = allNovels.find((n) => n.id === novelId);
         if (!novel) return null;
-
         const record = history[novelId];
-        const bookmark = await getBookmark(novelId);
-
         return {
           novel,
           readChapters: record.readChapters || [],
+          lastChapter: record.lastChapter || null,
           lastRead: record.lastRead,
-          bookmark,
         };
       })
-    )).filter(Boolean).sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
 
     // 載入每本小說的章節資訊
     const listWithChapters = await Promise.all(
@@ -88,20 +85,11 @@ export default function ReadingHistory() {
 
   // 繼續閱讀
   const handleContinueReading = (item) => {
-    const { novel, bookmark, readChapters } = item;
+    const { novel, lastChapter } = item;
 
-    // 如果有書籤，跳到書籤位置
-    if (bookmark && bookmark.chapter) {
-      navigate(`/novel/${novel.id}/read/${bookmark.chapter}`);
-      return;
-    }
-
-    // 沒有書籤，找出下一章
-    if (readChapters.length > 0) {
-      const lastRead = Math.max(...readChapters);
-      navigate(`/novel/${novel.id}/read/${lastRead + 1}`);
+    if (lastChapter) {
+      navigate(`/novel/${novel.id}/read/${lastChapter}`);
     } else {
-      // 從第一章開始
       navigate(`/novel/${novel.id}/read/1`);
     }
   };
@@ -211,7 +199,7 @@ export default function ReadingHistory() {
                       className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 
                                transition-colors text-sm font-medium"
                     >
-                      {item.bookmark ? "繼續閱讀" : "開始閱讀"}
+                      {item.lastChapter ? "繼續閱讀" : "開始閱讀"}
                     </button>
                     <button
                       onClick={() => navigate(`/novel/${item.novel.id}`)}
