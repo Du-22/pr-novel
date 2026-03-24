@@ -51,10 +51,9 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.authorUid == request.auth.uid;
 
-      // 作者可更新所有欄位；任何已登入使用者可更新 stats（閱讀數/收藏數）
-      allow update: if isSignedIn()
-                    && (resource.data.authorUid == request.auth.uid
-                        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']));
+      // 作者可更新所有欄位；任何人（含未登入）可更新 stats（閱讀數/收藏數）
+      allow update: if (isSignedIn() && resource.data.authorUid == request.auth.uid)
+                    || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']);
 
       allow delete: if isSignedIn()
                     && resource.data.authorUid == request.auth.uid
