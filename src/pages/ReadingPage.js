@@ -96,7 +96,7 @@ function ReadingPage() {
         setTotalPages(pages);
 
         // 載入書籤 (如果有的話)
-        const bookmark = getBookmark(id);
+        const bookmark = await getBookmark(id);
         if (
           bookmark &&
           bookmark.chapter === chapterNumber &&
@@ -123,7 +123,7 @@ function ReadingPage() {
     if (currentChapter) {
       // 延遲 2 秒後標記為已讀 (避免誤觸)
       const timer = setTimeout(() => {
-        markChapterAsRead(id, chapterNumber);
+        markChapterAsRead(id, chapterNumber).catch(() => {});
       }, 2000);
 
       return () => clearTimeout(timer);
@@ -135,7 +135,7 @@ function ReadingPage() {
     if (!currentChapter) return;
 
     const interval = setInterval(() => {
-      saveBookmark(id, chapterNumber, currentPage);
+      saveBookmark(id, chapterNumber, currentPage).catch(() => {});
     }, 30000);
 
     return () => clearInterval(interval);
@@ -174,7 +174,7 @@ function ReadingPage() {
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
-    saveBookmark(id, chapterNumber, newPage);
+    saveBookmark(id, chapterNumber, newPage).catch(() => {});
   };
 
   // ========== 切換章節 ==========

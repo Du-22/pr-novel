@@ -257,6 +257,11 @@ novels/{novelId}/
 5. 更新 `README.md`（重大功能才需要）
 6. **最後才執行 `git commit` + `git push`**
 
+### Commit 預設行為
+
+> **除非使用者明確說「不要 push」或「不要合併」，否則 commit 視同一次完整執行：**
+> `git commit` → `git push` → `gh pr create` → `gh pr merge`
+
 ---
 
 ## 🧪 功能測試清單

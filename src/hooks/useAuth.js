@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase/config";
-import { syncFavorites } from "../utils/favoritesManager";
-import { syncBookmarks } from "../utils/bookmarkManager";
-import { syncReadHistory } from "../utils/readHistoryManager";
 import { syncNovelsFromFirestore } from "../utils/uploadedNovelsManager";
 import { saveUserProfile } from "../firebase/users";
 
@@ -32,10 +29,7 @@ export function useAuth() {
           setUser(currentUser);
           // 儲存使用者公開資料
           saveUserProfile(currentUser.uid, currentUser.displayName, currentUser.email).catch(() => {});
-          // 登入後自動同步收藏、書籤、閱讀記錄、小說列表
-          syncFavorites().catch((err) => console.error("登入後同步收藏失敗:", err));
-          syncBookmarks().catch((err) => console.error("登入後同步書籤失敗:", err));
-          syncReadHistory().catch((err) => console.error("登入後同步閱讀記錄失敗:", err));
+          // 登入後同步小說列表
           syncNovelsFromFirestore(currentUser.uid).catch((err) => console.error("登入後同步小說列表失敗:", err));
         } else {
           // 使用者未登入

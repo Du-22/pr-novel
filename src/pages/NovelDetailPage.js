@@ -33,6 +33,7 @@ export default function NovelDetailPage() {
   const [isFavorited, setIsFavorited] = useState(false);
   const [similarNovels, setSimilarNovels] = useState([]);
   const [bookmark, setBookmark] = useState(null);
+  const [readChapters, setReadChapters] = useState([]);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
   const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
   const [userRating, setUserRating] = useState(null);
@@ -63,9 +64,13 @@ export default function NovelDetailPage() {
     // 載入相似推薦 (同標籤的其他小說)
     loadSimilarNovels(foundNovel, allNovels);
 
-    // 載入書籤 (localStorage)
-    const savedBookmark = getBookmark(id);
+    // 載入書籤
+    const savedBookmark = await getBookmark(id);
     setBookmark(savedBookmark);
+
+    // 載入已讀章節
+    const readChs = await getReadChapters(id);
+    setReadChapters(readChs);
 
     // 載入統計數據並增加 views (每次進入都 +1，防止 StrictMode 雙重觸發)
     const baseViews = foundNovel.stats?.views || 0;
@@ -188,10 +193,9 @@ export default function NovelDetailPage() {
     }
 
     // 沒有書籤,找出已讀章節
-    const readChapterNumbers = getReadChapters(id);
-    if (readChapterNumbers.length > 0) {
+    if (readChapters.length > 0) {
       // 找出最後讀過的章節
-      const lastRead = Math.max(...readChapterNumbers);
+      const lastRead = Math.max(...readChapters);
       const nextChapter = lastRead + 1;
 
       // 如果全讀完了,從第一章重讀
@@ -222,8 +226,7 @@ export default function NovelDetailPage() {
       return `繼續閱讀 (第${bookmark.chapter}章)`;
     }
 
-    const readChapterNumbers = getReadChapters(id);
-    if (readChapterNumbers.length > 0) {
+    if (readChapters.length > 0) {
       return "繼續閱讀";
     }
 
@@ -232,10 +235,7 @@ export default function NovelDetailPage() {
 
   // ========== 檢查章節是否已讀 ==========
 
-  const isChapterRead = (chapterNumber) => {
-    const readChapterNumbers = getReadChapters(id);
-    return readChapterNumbers.includes(chapterNumber);
-  };
+  const isChapterRead = (chapterNumber) => readChapters.includes(chapterNumber);
 
   if (!novel) return null;
 
