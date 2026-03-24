@@ -5,6 +5,7 @@ import { getNovelById } from "../utils/novelsHelper";
 import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
 import { parseNovelChapters } from "../utils/parser";
+import { ReadingPageSkeleton } from "../components/Skeleton";
 import { ref, getBytes } from "firebase/storage";
 import { storage } from "../firebase/config";
 import { getChapter } from "../firebase/chapters";
@@ -153,14 +154,9 @@ function ReadingPage() {
   // ========== Loading 狀態 ==========
   if (loading) {
     return (
-      <div className="min-h-screen bg-light">
+      <div className="min-h-screen bg-[#FEFDFB]">
         <Navbar showBackButton={true} />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-gray-600">載入中...</p>
-          </div>
-        </div>
+        <ReadingPageSkeleton />
       </div>
     );
   }

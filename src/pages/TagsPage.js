@@ -9,7 +9,9 @@ import { getRankingData } from "../utils/statsManager";
 export default function TagsPage() {
   const [selectedTags, setSelectedTags] = useState([]);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [sortBy, setSortBy] = useState("new"); // 'new' | 'views' | 'favorites'
+  const [sortBy, setSortBy] = useState(
+    () => sessionStorage.getItem("tagsSortBy") || "new"
+  ); // 'new' | 'views' | 'favorites'
   const [filteredNovels, setFilteredNovels] = useState([]);
   const [view, setView] = useState("grid");
 
@@ -166,7 +168,10 @@ export default function TagsPage() {
               <span className="text-gray-600">排序:</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => {
+                  sessionStorage.setItem("tagsSortBy", e.target.value);
+                  setSortBy(e.target.value);
+                }}
                 className="px-4 py-2 border border-gray-300 rounded-lg
                          focus:outline-none focus:ring-2 focus:ring-primary/50
                          bg-white text-dark cursor-pointer"
