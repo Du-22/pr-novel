@@ -4,7 +4,7 @@
 // 用途: 讀者評論區（樓層編號、巢狀回覆、@mention）
 // ============================================
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   collection,
@@ -79,6 +79,7 @@ export default function CommentsSection({
   chapters = [],
 }) {
   const { user } = useAuth();
+  const location = useLocation();
   const [topLevelComments, setTopLevelComments] = useState([]);
   const [replyMap, setReplyMap] = useState({});
   const [loading, setLoading] = useState(true);
@@ -86,6 +87,15 @@ export default function CommentsSection({
   // 折疊狀態
   const [showAllTopLevel, setShowAllTopLevel] = useState(false);
   const [expandedReplies, setExpandedReplies] = useState({}); // { commentId: true }
+  const [showDeletedIds, setShowDeletedIds] = useState(new Set());
+
+  const toggleShowDeleted = (id) => {
+    setShowDeletedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   // 第一層留言輸入
   const [content, setContent] = useState("");
@@ -158,6 +168,38 @@ export default function CommentsSection({
     loadComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [novelId]);
+
+  // ========== URL hash 跳轉到指定留言 ==========
+  useEffect(() => {
+    if (loading || !location.hash?.startsWith("#comment-")) return;
+    const targetId = location.hash.replace("#comment-", "");
+
+    // 如果目標是頂層留言且被折疊，先展開
+    const isTopLevel = topLevelComments.some((c) => c.id === targetId);
+    if (isTopLevel) {
+      setShowAllTopLevel(true);
+    } else {
+      // 找出是哪個 thread 的回覆並展開
+      for (const [parentId, replies] of Object.entries(replyMap)) {
+        if (replies.some((r) => r.id === targetId)) {
+          setExpandedReplies((prev) => ({ ...prev, [parentId]: true }));
+          break;
+        }
+      }
+    }
+
+    setTimeout(() => {
+      const el = document.getElementById(`comment-${targetId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-primary", "ring-offset-2", "rounded-lg");
+        setTimeout(() => {
+          el.classList.remove("ring-2", "ring-primary", "ring-offset-2", "rounded-lg");
+        }, 2500);
+      }
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, location.hash]);
 
   // ========== 送出第一層留言 ==========
   const handleSubmit = async (e) => {
@@ -414,6 +456,7 @@ export default function CommentsSection({
     topLevelComments.length +
     Object.values(replyMap).reduce((sum, arr) => sum + arr.length, 0);
 
+
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <div className="flex items-center justify-between mb-6">
@@ -536,13 +579,40 @@ export default function CommentsSection({
             const hiddenReplyCount = replies.length - REPLY_LIMIT;
 
             return (
-              <div key={comment.id}>
+              <div key={comment.id} id={`comment-${comment.id}`}>
                 {/* ---- 第一層留言 ---- */}
                 <div className="flex gap-3">
                   <Avatar name={comment.authorName} uid={comment.deleted ? undefined : comment.authorUid} />
                   <div className="flex-1">
                     {comment.deleted ? (
-                      <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                      <div>
+                        {showDeletedIds.has(comment.id) ? (
+                          <div className="opacity-70">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs bg-red-100 text-red-500 px-1.5 py-0.5 rounded">已刪除</span>
+                              <button
+                                onClick={() => toggleShowDeleted(comment.id)}
+                                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                              >
+                                隱藏
+                              </button>
+                            </div>
+                            <p className="text-gray-500 text-sm leading-relaxed break-words line-through">
+                              {comment.content}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                            <button
+                              onClick={() => toggleShowDeleted(comment.id)}
+                              className="text-xs text-gray-400 hover:text-primary transition-colors"
+                            >
+                              顯示
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     ) : (
                       <>
                         <div className="flex items-center justify-between mb-1">
@@ -625,11 +695,38 @@ export default function CommentsSection({
                 {replies.length > 0 && (
                   <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
                     {visibleReplies.map((reply) => (
-                      <div key={reply.id} className="flex gap-3">
+                      <div key={reply.id} id={`comment-${reply.id}`} className="flex gap-3">
                         <Avatar name={reply.authorName} uid={reply.deleted ? undefined : reply.authorUid} size="w-7 h-7" />
                         <div className="flex-1">
                           {reply.deleted ? (
-                            <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                            <div>
+                              {showDeletedIds.has(reply.id) ? (
+                                <div className="opacity-70">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs bg-red-100 text-red-500 px-1.5 py-0.5 rounded">已刪除</span>
+                                    <button
+                                      onClick={() => toggleShowDeleted(reply.id)}
+                                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                    >
+                                      隱藏
+                                    </button>
+                                  </div>
+                                  <p className="text-gray-500 text-sm leading-relaxed break-words line-through">
+                                    {reply.content}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                                  <button
+                                    onClick={() => toggleShowDeleted(reply.id)}
+                                    className="text-xs text-gray-400 hover:text-primary transition-colors"
+                                  >
+                                    顯示
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <>
                               <div className="flex items-center justify-between mb-1">

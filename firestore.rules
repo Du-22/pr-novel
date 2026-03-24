@@ -123,9 +123,9 @@ service cloud.firestore {
 
     // ========== 檢舉 (reports) ==========
     match /reports/{reportId} {
-      // 登入使用者可提交檢舉；讀取/修改/刪除只有後端（Cloud Functions）可操作
       allow create: if isSignedIn();
-      allow read, update, delete: if false;
+      allow read, update: if isAdmin();
+      allow delete: if false;
     }
 
 

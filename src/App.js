@@ -20,6 +20,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import SearchPage from "./pages/SearchPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
+import AdminPage from "./pages/AdminPage";
 import SyncIndicator from "./components/SyncIndicator";
 
 function App() {
@@ -87,6 +88,9 @@ function App() {
 
         {/* 登入頁 */}
         <Route path="/auth" element={<AuthPage />} />
+
+        {/* 管理員後台 */}
+        <Route path="/admin" element={<AdminPage />} />
 
         {/* 404頁面 */}
         <Route path="*" element={<NotFoundPage />} />
