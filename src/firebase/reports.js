@@ -3,7 +3,16 @@
 // 路徑: src/firebase/reports.js
 // 用途: 留言檢舉 Firestore 操作
 // ============================================
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  updateDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+} from "firebase/firestore";
 import { db } from "./config";
 import { createNotification } from "./notifications";
 import { ADMIN_UID } from "../config/adminConfig";
@@ -57,6 +66,24 @@ export const submitReport = async ({
     novelTitle: novelTitle || "",
     commentContent: reportedContent?.slice(0, 50) || "",
     reason: REPORT_REASON_LABELS[reason] || reason,
+    commentId: reportedCommentId,
     chapterNumber: chapterNumber ?? null,
   });
 };
+
+// ========== 取得所有檢舉（管理員用）==========
+export const getReports = async () => {
+  const q = query(collection(db, "reports"), orderBy("createdAt", "desc"));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+};
+
+// ========== 更新檢舉狀態（resolved / dismissed）==========
+export const updateReportStatus = async (reportId, status) => {
+  await updateDoc(doc(db, "reports", reportId), {
+    status,
+    resolvedAt: serverTimestamp(),
+  });
+};
+
+export { REPORT_REASON_LABELS };

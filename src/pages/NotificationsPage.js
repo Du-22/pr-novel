@@ -84,6 +84,26 @@ export default function NotificationsPage() {
         </>
       );
     }
+    if (n.type === "comment_deleted") {
+      return (
+        <>
+          {"你在《"}
+          <span className="font-semibold text-primary">{n.novelTitle || "某本小說"}</span>
+          {"》的留言已因"}
+          {n.reason && <span className="text-red-500">「{n.reason}」</span>}
+          {"被管理員刪除"}
+        </>
+      );
+    }
+    if (n.type === "report_resolved") {
+      return (
+        <>
+          {"你檢舉的《"}
+          <span className="font-semibold text-primary">{n.novelTitle || "某本小說"}</span>
+          {"》留言已被管理員處理"}
+        </>
+      );
+    }
     return "有新通知";
   };
 
@@ -115,7 +135,11 @@ export default function NotificationsPage() {
             {notifications.map((n) => (
               <div
                 key={n.id}
-                onClick={() => n.novelId && navigate(`/novel/${n.novelId}`)}
+                onClick={() => {
+                  if (!n.novelId) return;
+                  const hash = n.commentId ? `#comment-${n.commentId}` : "";
+                  navigate(`/novel/${n.novelId}${hash}`);
+                }}
                 className={`bg-white rounded-lg shadow-sm p-4 flex items-start gap-4 cursor-pointer
                   hover:shadow-md transition-shadow border-l-4 ${
                     n.read ? "border-transparent" : "border-primary"
@@ -125,9 +149,15 @@ export default function NotificationsPage() {
                 <div className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-base ${
                   n.type === "reply" ? "bg-blue-100 text-blue-600"
                   : n.type === "report" ? "bg-orange-100 text-orange-500"
+                  : n.type === "comment_deleted" ? "bg-red-100 text-red-500"
+                  : n.type === "report_resolved" ? "bg-green-100 text-green-600"
                   : "bg-pink-100 text-pink-500"
                 }`}>
-                  {n.type === "reply" ? "↩" : n.type === "report" ? "⚑" : "♥"}
+                  {n.type === "reply" ? "↩"
+                  : n.type === "report" ? "⚑"
+                  : n.type === "comment_deleted" ? "✕"
+                  : n.type === "report_resolved" ? "✓"
+                  : "♥"}
                 </div>
 
                 {/* 內容 */}

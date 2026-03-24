@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { logout } from "../firebase/auth";
@@ -7,6 +7,7 @@ import {
   getNotifications,
   markAllNotificationsAsRead,
 } from "../firebase/notifications";
+import { ADMIN_UID } from "../config/adminConfig";
 
 const Navbar = ({ showBackButton = false }) => {
   const navigate = useNavigate();
@@ -307,7 +308,8 @@ const Navbar = ({ showBackButton = false }) => {
                             <div
                               key={n.id}
                               onClick={() => {
-                                navigate(`/novel/${n.novelId}`);
+                                const hash = n.commentId ? `#comment-${n.commentId}` : "";
+                                navigate(`/novel/${n.novelId}${hash}`);
                                 setShowNotifications(false);
                               }}
                               className={`flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-light transition-colors border-b border-gray-50 ${
@@ -317,12 +319,18 @@ const Navbar = ({ showBackButton = false }) => {
                               {/* 類型圖示 */}
                               <div
                                 className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs mt-0.5 ${
-                                  n.type === "reply"
-                                    ? "bg-blue-100 text-blue-600"
-                                    : "bg-pink-100 text-pink-500"
+                                  n.type === "reply" ? "bg-blue-100 text-blue-600"
+                                  : n.type === "report" ? "bg-orange-100 text-orange-500"
+                                  : n.type === "comment_deleted" ? "bg-red-100 text-red-500"
+                                  : n.type === "report_resolved" ? "bg-green-100 text-green-600"
+                                  : "bg-pink-100 text-pink-500"
                                 }`}
                               >
-                                {n.type === "reply" ? "↩" : "♥"}
+                                {n.type === "reply" ? "↩"
+                                : n.type === "report" ? "⚑"
+                                : n.type === "comment_deleted" ? "✕"
+                                : n.type === "report_resolved" ? "✓"
+                                : "♥"}
                               </div>
 
                               {/* 內容 */}
@@ -333,6 +341,12 @@ const Navbar = ({ showBackButton = false }) => {
                                   </span>
                                   {n.type === "reply"
                                     ? " 回覆了你的留言"
+                                    : n.type === "report"
+                                    ? ` 檢舉了一則留言 — 原因：${n.reason || ""}`
+                                    : n.type === "comment_deleted"
+                                    ? "你的留言已被管理員刪除"
+                                    : n.type === "report_resolved"
+                                    ? "你檢舉的留言已被管理員處理"
                                     : " 對你的留言按讚"}
                                 </p>
                                 {n.novelTitle && (
@@ -442,6 +456,17 @@ const Navbar = ({ showBackButton = false }) => {
                       >
                         我的上傳
                       </Link>
+
+                      {/* 管理員後台 */}
+                      {user.uid === ADMIN_UID && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setShowUserMenu(false)}
+                          className="block px-4 py-2 text-sm text-primary font-medium hover:bg-light transition-colors"
+                        >
+                          管理員後台
+                        </Link>
+                      )}
 
                       {/* 分隔線 */}
                       <div className="border-t border-gray-200 my-1"></div>
