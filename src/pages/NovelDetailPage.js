@@ -10,6 +10,7 @@ import {
   incrementNovelViews,
   incrementNovelFavorites,
   decrementNovelFavorites,
+  getNovelById as fetchNovelStats,
 } from "../firebase/novels";
 import {
   isFavorited as checkIsFavorited,
@@ -19,6 +20,7 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import CommentsSection from "../components/CommentsSection";
 import RatingDisplay from "../components/RatingDisplay";
+import { NovelDetailSkeleton } from "../components/Skeleton";
 import RatingInput from "../components/RatingInput";
 import { getUserRating, submitRating, getRatingStats } from "../firebase/ratings";
 
@@ -68,9 +70,10 @@ export default function NovelDetailPage() {
     setReadChapters(readChs);
     setLastChapter(lastCh);
 
-    // 載入統計數據並增加 views (每次進入都 +1，防止 StrictMode 雙重觸發)
-    const baseViews = foundNovel.stats?.views || 0;
-    const baseFavorites = foundNovel.stats?.favorites || 0;
+    // 載入統計數據並增加 views（直接從 Firestore 讀最新值，避免快取過時）
+    const freshNovel = await fetchNovelStats(id);
+    const baseViews = freshNovel?.stats?.views ?? foundNovel.stats?.views ?? 0;
+    const baseFavorites = freshNovel?.stats?.favorites ?? foundNovel.stats?.favorites ?? 0;
     if (incrementedForIdRef.current !== id) {
       incrementedForIdRef.current = id;
       setStats({ views: baseViews + 1, favorites: baseFavorites });
@@ -205,7 +208,17 @@ export default function NovelDetailPage() {
 
   const isChapterRead = (chapterNumber) => readChapters.includes(chapterNumber);
 
-  if (!novel) return null;
+  if (!novel) {
+    if (loading) {
+      return (
+        <div className="min-h-screen bg-light">
+          <Navbar showBackButton={true} />
+          <NovelDetailSkeleton />
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-light">
@@ -338,7 +351,11 @@ export default function NovelDetailPage() {
           <h2 className="text-2xl font-bold text-dark mb-4">章節目錄</h2>
 
           {loading ? (
-            <p className="text-gray-500 text-center py-8">載入中...</p>
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-14 bg-gray-200 animate-pulse rounded-lg" />
+              ))}
+            </div>
           ) : chapters.length === 0 ? (
             <p className="text-gray-500 text-center py-8">暫無章節</p>
           ) : (

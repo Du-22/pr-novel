@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getAllReadHistory } from "../../utils/readHistoryManager";
 import { getAllNovels } from "../../utils/novelsHelper";
 import { parseNovelChapters } from "../../utils/parser";
+import { ProfileListSkeleton } from "../Skeleton";
 
 export default function ReadingHistory() {
   const navigate = useNavigate();
@@ -94,14 +95,9 @@ export default function ReadingHistory() {
     }
   };
 
+  if (loading) return <ProfileListSkeleton count={4} />;
+
   // 空狀態
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-12 text-center">
-        <p className="text-gray-500">載入中...</p>
-      </div>
-    );
-  }
 
   if (readingList.length === 0) {
     return (

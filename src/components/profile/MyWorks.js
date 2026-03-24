@@ -9,6 +9,7 @@ import ConfirmDialog from "../ConfirmDialog";
 import { useAuth } from "../../hooks/useAuth";
 import { getUserNovels, deleteNovel } from "../../firebase/novels";
 import { refreshNovels } from "../../utils/novelsHelper";
+import { ProfileListSkeleton } from "../Skeleton";
 
 export default function MyWorks() {
   const navigate = useNavigate();
@@ -86,13 +87,7 @@ export default function MyWorks() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="bg-white rounded-lg shadow-md p-12 text-center">
-        <p className="text-gray-500">載入中...</p>
-      </div>
-    );
-  }
+  if (loading) return <ProfileListSkeleton count={3} />;
 
   if (novels.length === 0) {
     return (

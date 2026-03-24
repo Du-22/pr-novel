@@ -33,6 +33,7 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
       translator: novelData.translator || "",
       summary: novelData.summary,
       tags: novelData.tags,
+      status: novelData.status || "serializing",
       coverImage: novelData.coverImage,
       chapters: chaptersMetadata,
       txtUrl: novelData.txtUrl || null,

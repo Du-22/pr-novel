@@ -71,25 +71,16 @@ export const decrementFavorites = (novelId) => {
   return allStats[novelId].favorites;
 };
 
-// ========== 取得排行榜數據 (合併 mockData + localStorage) ==========
+// ========== 取得排行榜數據 ==========
 export const getRankingData = (mockNovels, sortBy = "views", limit = null) => {
-  const allStats = getAllStats();
-
-  // 合併 mockData 和 localStorage 數據
-  const novelsWithStats = mockNovels.map((novel) => {
-    const stats = allStats[novel.id] || {
+  // 直接使用 novel.stats（來自 Firestore 快取），不再讀 localStorage
+  const novelsWithStats = mockNovels.map((novel) => ({
+    ...novel,
+    stats: {
       views: novel.stats?.views || 0,
       favorites: novel.stats?.favorites || 0,
-    };
-
-    return {
-      ...novel,
-      stats: {
-        views: stats.views,
-        favorites: stats.favorites,
-      },
-    };
-  });
+    },
+  }));
 
   // 根據排序方式排序
   let sorted = [...novelsWithStats];

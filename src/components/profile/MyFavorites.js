@@ -10,10 +10,12 @@ import {
 } from "../../utils/favoritesManager";
 import { getAllNovels } from "../../utils/novelsHelper";
 import { decrementNovelFavorites } from "../../firebase/novels";
+import { ProfileListSkeleton } from "../Skeleton";
 
 export default function MyFavorites() {
   const navigate = useNavigate();
   const [favoriteNovels, setFavoriteNovels] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("grid"); // "grid" | "list"
 
   // 載入收藏的小說
@@ -22,6 +24,7 @@ export default function MyFavorites() {
   }, []);
 
   const loadFavorites = async () => {
+    setLoading(true);
     const favoriteIds = await getFavoriteNovelIds();
     const allNovels = getAllNovels();
 
@@ -41,6 +44,7 @@ export default function MyFavorites() {
     ).filter((novel) => novel !== null);
 
     setFavoriteNovels(novels);
+    setLoading(false);
   };
 
   // 取消收藏
@@ -66,6 +70,8 @@ export default function MyFavorites() {
       return dateString;
     }
   };
+
+  if (loading) return <ProfileListSkeleton count={4} />;
 
   // 空狀態
   if (favoriteNovels.length === 0) {
