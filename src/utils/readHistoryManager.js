@@ -27,42 +27,66 @@ function saveLocalHistory(history) {
 // ========== 公開 API ==========
 
 /**
- * 取得小說的已讀章節列表（登入時讀 Firestore，未登入讀 localStorage）
- * @returns {Promise<number[]>}
+ * 取得單本小說的閱讀資料 { readChapters, lastChapter, lastRead }
+ * 一次讀取，避免多次 Firestore 查詢
  */
-export async function getReadChapters(novelId) {
+export async function getNovelReadData(novelId) {
   const user = auth.currentUser;
   if (user) {
     try {
       const docData = await getDocument(`readHistory/${user.uid}/novels`, novelId);
       if (docData) {
-        const entry = { readChapters: docData.readChapters || [], lastRead: docData.lastRead || null };
+        const entry = {
+          readChapters: docData.readChapters || [],
+          lastChapter: docData.lastChapter || null,
+          lastRead: docData.lastRead || null,
+        };
         const local = getLocalHistory();
         local[novelId] = entry;
         saveLocalHistory(local);
-        return entry.readChapters;
+        return entry;
       }
-      return [];
+      return { readChapters: [], lastChapter: null, lastRead: null };
     } catch (err) {
-      console.error("讀取已讀章節失敗:", err);
-      return getLocalHistory()[novelId]?.readChapters || [];
+      console.error("讀取閱讀資料失敗:", err);
+      const local = getLocalHistory()[novelId];
+      return {
+        readChapters: local?.readChapters || [],
+        lastChapter: local?.lastChapter || null,
+        lastRead: local?.lastRead || null,
+      };
     }
   }
-  return getLocalHistory()[novelId]?.readChapters || [];
+  const local = getLocalHistory()[novelId];
+  return {
+    readChapters: local?.readChapters || [],
+    lastChapter: local?.lastChapter || null,
+    lastRead: local?.lastRead || null,
+  };
 }
 
 /**
- * 標記章節為已讀（登入時寫 Firestore，同時更新 localStorage）
+ * 取得小說的已讀章節列表
+ * @returns {Promise<number[]>}
+ */
+export async function getReadChapters(novelId) {
+  const { readChapters } = await getNovelReadData(novelId);
+  return readChapters;
+}
+
+/**
+ * 標記章節為已讀，同時記錄 lastChapter
  */
 export async function markChapterAsRead(novelId, chapterNumber) {
   const history = getLocalHistory();
   if (!history[novelId]) {
-    history[novelId] = { readChapters: [], lastRead: null };
+    history[novelId] = { readChapters: [], lastChapter: null, lastRead: null };
   }
   if (!history[novelId].readChapters.includes(chapterNumber)) {
     history[novelId].readChapters.push(chapterNumber);
     history[novelId].readChapters.sort((a, b) => a - b);
   }
+  history[novelId].lastChapter = chapterNumber;
   history[novelId].lastRead = new Date().toISOString();
   saveLocalHistory(history);
 
@@ -74,7 +98,6 @@ export async function markChapterAsRead(novelId, chapterNumber) {
 
 /**
  * 取得所有閱讀記錄（登入時讀 Firestore，未登入讀 localStorage）
- * @returns {Promise<{[novelId]: {readChapters: number[], lastRead: string}}>}
  */
 export async function getAllReadHistory() {
   const user = auth.currentUser;
@@ -83,7 +106,11 @@ export async function getAllReadHistory() {
       const docs = await getSubCollectionDocs(`readHistory/${user.uid}`, "novels");
       const result = {};
       docs.forEach((d) => {
-        result[d.id] = { readChapters: d.readChapters || [], lastRead: d.lastRead || null };
+        result[d.id] = {
+          readChapters: d.readChapters || [],
+          lastChapter: d.lastChapter || null,
+          lastRead: d.lastRead || null,
+        };
       });
       saveLocalHistory(result);
       return result;
@@ -101,17 +128,4 @@ export async function getAllReadHistory() {
 export function getReadingProgress(readChapters, totalChapters) {
   if (totalChapters === 0) return 0;
   return Math.round((readChapters.length / totalChapters) * 100);
-}
-
-/**
- * 清除小說的閱讀記錄（僅清 localStorage，不清 Firestore）
- */
-export function clearReadHistory(novelId) {
-  try {
-    const history = getLocalHistory();
-    delete history[novelId];
-    saveLocalHistory(history);
-  } catch (err) {
-    console.error("清除閱讀記錄失敗:", err);
-  }
 }

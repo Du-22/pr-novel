@@ -5,8 +5,7 @@ import NovelCard from "../components/NovelCard";
 import { getAllNovels } from "../utils/novelsHelper";
 import { getTotalWordCount, formatWordCount } from "../utils/parser";
 import { getNovelsByTag } from "../utils/random";
-import { getBookmark } from "../utils/bookmarkManager";
-import { getReadChapters } from "../utils/readHistoryManager";
+import { getNovelReadData } from "../utils/readHistoryManager";
 import {
   incrementNovelViews,
   incrementNovelFavorites,
@@ -32,8 +31,8 @@ export default function NovelDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isFavorited, setIsFavorited] = useState(false);
   const [similarNovels, setSimilarNovels] = useState([]);
-  const [bookmark, setBookmark] = useState(null);
   const [readChapters, setReadChapters] = useState([]);
+  const [lastChapter, setLastChapter] = useState(null);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
   const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
   const [userRating, setUserRating] = useState(null);
@@ -64,13 +63,10 @@ export default function NovelDetailPage() {
     // 載入相似推薦 (同標籤的其他小說)
     loadSimilarNovels(foundNovel, allNovels);
 
-    // 載入書籤
-    const savedBookmark = await getBookmark(id);
-    setBookmark(savedBookmark);
-
-    // 載入已讀章節
-    const readChs = await getReadChapters(id);
+    // 載入閱讀資料（已讀章節 + 上次讀到的章節）
+    const { readChapters: readChs, lastChapter: lastCh } = await getNovelReadData(id);
     setReadChapters(readChs);
+    setLastChapter(lastCh);
 
     // 載入統計數據並增加 views (每次進入都 +1，防止 StrictMode 雙重觸發)
     const baseViews = foundNovel.stats?.views || 0;
@@ -181,55 +177,27 @@ export default function NovelDetailPage() {
   const startReading = () => {
     if (chapters.length === 0) return;
 
-    // 如果有書籤,跳到書籤位置
-    if (bookmark && bookmark.chapter) {
-      const chapterExists = chapters.find(
-        (c) => c.chapterNumber === bookmark.chapter
-      );
+    // 有上次閱讀記錄，跳回上次的章節
+    if (lastChapter) {
+      const chapterExists = chapters.find((c) => c.chapterNumber === lastChapter);
       if (chapterExists) {
-        navigate(`/novel/${id}/read/${bookmark.chapter}`);
+        navigate(`/novel/${id}/read/${lastChapter}`);
         return;
       }
     }
 
-    // 沒有書籤,找出已讀章節
-    if (readChapters.length > 0) {
-      // 找出最後讀過的章節
-      const lastRead = Math.max(...readChapters);
-      const nextChapter = lastRead + 1;
-
-      // 如果全讀完了,從第一章重讀
-      const targetChapter = chapters.find(
-        (c) => c.chapterNumber === nextChapter
-      )
-        ? nextChapter
-        : chapters[0].chapterNumber;
-
-      navigate(`/novel/${id}/read/${targetChapter}`);
-    } else {
-      // 從第一章開始
-      navigate(`/novel/${id}/read/${chapters[0].chapterNumber}`);
-    }
+    // 沒有記錄，從第一章開始
+    navigate(`/novel/${id}/read/${chapters[0].chapterNumber}`);
   };
 
   // ========== 取得按鈕文字 ==========
 
   const getReadButtonText = () => {
-    if (bookmark && bookmark.chapter) {
-      // 找到章節標題
-      const chapter = chapters.find(
-        (c) => c.chapterNumber === bookmark.chapter
-      );
-      if (chapter) {
-        return `繼續閱讀 (${chapter.title})`;
-      }
-      return `繼續閱讀 (第${bookmark.chapter}章)`;
+    if (lastChapter) {
+      const chapter = chapters.find((c) => c.chapterNumber === lastChapter);
+      if (chapter) return `繼續閱讀 (${chapter.title})`;
+      return `繼續閱讀 (第${lastChapter}章)`;
     }
-
-    if (readChapters.length > 0) {
-      return "繼續閱讀";
-    }
-
     return "開始閱讀";
   };
 
