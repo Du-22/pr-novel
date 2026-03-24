@@ -105,9 +105,9 @@ const Navbar = ({ showBackButton = false }) => {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2">
               <img
-                src="/pr-novels-navber.png"
+                src="/navbar-logo.png"
                 alt="PR小說網"
-                className="w-10 h-10 rounded-lg object-contain"
+                className="w-12 h-12 rounded-lg object-contain"
               />
               <span className="text-2xl font-bold text-white">PR小說網</span>
             </Link>
