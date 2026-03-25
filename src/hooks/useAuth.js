@@ -25,7 +25,7 @@ export function useAuth() {
       (currentUser) => {
         if (currentUser) {
           // 使用者已登入
-          console.log("✅ 使用者已登入:", currentUser.email);
+          if (process.env.NODE_ENV === "development") console.log("✅ 使用者已登入:", currentUser.email);
           setUser(currentUser);
           // 儲存使用者公開資料
           saveUserProfile(currentUser.uid, currentUser.displayName, currentUser.email).catch(() => {});
@@ -33,7 +33,6 @@ export function useAuth() {
           syncNovelsFromFirestore(currentUser.uid).catch((err) => console.error("登入後同步小說列表失敗:", err));
         } else {
           // 使用者未登入
-          console.log("❌ 使用者未登入");
           setUser(null);
         }
         setLoading(false);

@@ -3,7 +3,7 @@
 // 路徑: src/components/CommentsSection.js
 // 用途: 讀者評論區（樓層編號、巢狀回覆、@mention）
 // ============================================
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
@@ -133,7 +133,7 @@ export default function CommentsSection({
   const itemsCol = `comments/${novelId}/items`;
 
   // ========== 載入評論 ==========
-  const loadComments = async () => {
+  const loadComments = useCallback(async () => {
     try {
       setLoading(true);
       const q = query(collection(db, itemsCol), orderBy("createdAt", "asc"));
@@ -175,12 +175,11 @@ export default function CommentsSection({
     } finally {
       setLoading(false);
     }
-  };
+  }, [novelId, chapterNumber]);
 
   useEffect(() => {
     loadComments();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [novelId]);
+  }, [loadComments]);
 
   // ========== URL hash 跳轉到指定留言 ==========
   useEffect(() => {

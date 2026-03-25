@@ -132,22 +132,13 @@ export const queryDocuments = async (
   limitCount = null
 ) => {
   try {
-    let q = collection(db, collectionPath);
+    const constraints = conditions.map(([field, operator, value]) =>
+      where(field, operator, value)
+    );
+    if (orderByField) constraints.push(orderBy(orderByField));
+    if (limitCount) constraints.push(limit(limitCount));
 
-    // 加上查詢條件
-    conditions.forEach(([field, operator, value]) => {
-      q = query(q, where(field, operator, value));
-    });
-
-    // 加上排序
-    if (orderByField) {
-      q = query(q, orderBy(orderByField));
-    }
-
-    // 加上數量限制
-    if (limitCount) {
-      q = query(q, limit(limitCount));
-    }
+    const q = query(collection(db, collectionPath), ...constraints);
 
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map((doc) => ({

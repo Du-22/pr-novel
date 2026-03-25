@@ -97,8 +97,12 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && request.resource.data.authorUid == request.auth.uid;
 
-      // update 用於 replyCount 遞增（transaction）
-      allow update: if isSignedIn();
+      // 本人可更新所有欄位；任何登入者可更新 replyCount 和 likedBy（transaction / 按讚）
+      allow update: if isSignedIn() && (
+        resource.data.authorUid == request.auth.uid ||
+        isAdmin() ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'likedBy'])
+      );
 
       allow delete: if isSignedIn()
                     && (resource.data.authorUid == request.auth.uid || isAdmin());
