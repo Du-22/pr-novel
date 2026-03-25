@@ -175,7 +175,7 @@ export default function CommentsSection({
     } finally {
       setLoading(false);
     }
-  }, [novelId, chapterNumber, itemsCol]);
+  }, [chapterNumber, itemsCol]);
 
   useEffect(() => {
     loadComments();
