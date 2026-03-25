@@ -8,19 +8,17 @@
 
 ## 截圖
 
-<!-- 請補充以下截圖，建議尺寸 1280×720 或 16:9 比例 -->
-
 | 首頁 | 小說詳情頁 |
 |------|-----------|
-| ![首頁截圖](docs/screenshots/home.png) | ![詳情頁截圖](docs/screenshots/detail.png) |
+| ![首頁截圖](docs/screenshots/home.jpg) | ![詳情頁截圖](docs/screenshots/detail.jpg) |
 
 | 閱讀頁 | 個人中心 |
 |--------|---------|
-| ![閱讀頁截圖](docs/screenshots/reading.png) | ![個人中心截圖](docs/screenshots/profile.png) |
+| ![閱讀頁截圖](docs/screenshots/reading.jpg) | ![個人中心截圖](docs/screenshots/profile.jpg) |
 
 | 留言系統 | 管理員後台 |
 |---------|----------|
-| ![留言截圖](docs/screenshots/comments.png) | ![後台截圖](docs/screenshots/admin.png) |
+| ![留言截圖](docs/screenshots/comments.jpg) | ![後台截圖](docs/screenshots/admin.jpg) |
 
 ---
 
@@ -92,9 +90,7 @@ cd pr-novel
 # 2. 安裝套件
 npm install
 
-# 3. 設定環境變數
-cp .env.example .env
-# 填入你的 Firebase 設定
+# 3. 新增 .env 檔案並填入你的 Firebase 設定
 ```
 
 在 `.env` 填入以下變數：

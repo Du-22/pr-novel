@@ -53,3 +53,9 @@ pnpm-lock.yaml
 *.tmp
 *.temp
 .cache/
+
+# Local planning
+TODO.md
+
+# Local scripts (may contain credentials)
+scripts/
