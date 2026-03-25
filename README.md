@@ -126,6 +126,10 @@ src/
 
 ---
 
+## 開發說明
+
+本專案使用 [Claude Code](https://claude.ai/code)（AI 工具）輔助開發，包含程式碼生成、架構規劃與問題排查。
+
 ## License
 
 MIT
