@@ -30,6 +30,9 @@ lerna-debug.log*
 *.swo
 *~
 
+# Claude Code local config
+.claude/
+
 # Optional npm cache directory
 .npm
 

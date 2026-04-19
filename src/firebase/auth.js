@@ -6,6 +6,9 @@ import {
   signInWithPopup,
   sendPasswordResetEmail,
   updateProfile,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from "firebase/auth";
 import { auth } from "./config";
 
@@ -110,6 +113,33 @@ export const resetPassword = async (email) => {
     console.log("✅ 密碼重設信件已發送至:", email);
   } catch (error) {
     console.error("❌ 發送密碼重設信件失敗:", error.message);
+    throw handleAuthError(error);
+  }
+};
+
+// ========== 更改密碼 ==========
+/**
+ * 更改目前登入使用者的密碼（需要重新驗證當前密碼）
+ * @param {string} currentPassword - 當前密碼
+ * @param {string} newPassword - 新密碼
+ * @returns {Promise<void>}
+ */
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      throw new Error("使用者未登入");
+    }
+
+    // 用當前密碼重新驗證（Firebase 規定敏感操作需近期登入）
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+
+    // 更新密碼
+    await updatePassword(user, newPassword);
+    console.log("✅ 密碼更改成功");
+  } catch (error) {
+    console.error("❌ 密碼更改失敗:", error.message);
     throw handleAuthError(error);
   }
 };
