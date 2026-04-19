@@ -9,6 +9,7 @@ import Navbar from "../components/Navbar";
 import MyFavorites from "../components/profile/MyFavorites";
 import MyWorks from "../components/profile/MyWorks";
 import ReadingHistory from "../components/profile/ReadingHistory";
+import ChangePasswordDialog from "../components/ChangePasswordDialog";
 import { useAuth } from "../hooks/useAuth";
 import { getUserProfile, updateUserProfile } from "../firebase/users";
 import { updateDisplayName } from "../firebase/auth";
@@ -27,6 +28,13 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+
+  // 僅 Email/Password 使用者可更改密碼（Google 登入者無密碼）
+  const isEmailUser = user?.providerData?.some(
+    (p) => p.providerId === "password"
+  );
 
   // 載入使用者簡介
   useEffect(() => {
@@ -184,6 +192,18 @@ export default function ProfilePage() {
                   </p>
                 )}
               </div>
+
+              {/* 右上角操作按鈕（僅 Email 使用者顯示） */}
+              {isEmailUser && (
+                <button
+                  onClick={() => setShowChangePassword(true)}
+                  className="flex-shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg
+                           text-gray-600 hover:border-primary hover:text-primary transition-colors
+                           whitespace-nowrap"
+                >
+                  更改密碼
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -214,6 +234,12 @@ export default function ProfilePage() {
         {/* 內容區 */}
         <div className="transition-all duration-300">{renderContent()}</div>
       </div>
+
+      {/* 更改密碼對話框 */}
+      <ChangePasswordDialog
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+      />
     </div>
   );
 }
