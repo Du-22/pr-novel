@@ -1,6 +1,15 @@
+// ============================================
+// 檔案名稱: MyUploadsPage.js
+// 路徑: src/pages/MyUploadsPage.js
+// 用途: 我的上傳管理頁 — 列出本地+雲端的上傳小說 + 編輯/刪除
+// ============================================
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Library } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import DefaultCover from "../components/DefaultCover";
 import ConfirmDialog from "../components/ConfirmDialog";
 import {
   getUploadedNovels,
@@ -10,6 +19,8 @@ import {
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
 
+const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
+
 export default function MyUploadsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -17,17 +28,14 @@ export default function MyUploadsPage() {
   const [showDialog, setShowDialog] = useState(false);
   const [novelToDelete, setNovelToDelete] = useState(null);
 
-  // 載入上傳的小說列表
   useEffect(() => {
     const uploadedNovels = getUploadedNovels();
-    // 按上傳日期排序（最新在前）
     const sorted = uploadedNovels.sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
     setNovels(sorted);
   }, []);
 
-  // 處理刪除
   const handleDeleteClick = (novel) => {
     setNovelToDelete(novel);
     setShowDialog(true);
@@ -50,18 +58,19 @@ export default function MyUploadsPage() {
     }
   };
 
-  // 處理編輯
-  const handleEdit = (novelId) => {
-    navigate(`/my-uploads/edit/${novelId}`);
+  // 取得實際可用於 NovelDetailPage / EditUploadPage 查找的 ID
+  // 已同步到 Firestore 用 firestoreId, 否則 fallback 本地 id
+  const getNavigateId = (novel) => novel.firestoreId || novel.id;
+
+  const handleEdit = (novel) => {
+    navigate(`/my-uploads/edit/${getNavigateId(novel)}`);
   };
 
-  // 計算總字數
   const getTotalWords = (chapters) => {
     if (!chapters || chapters.length === 0) return 0;
     return chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
   };
 
-  // 格式化日期
   const formatDate = (dateString) => {
     if (!dateString) return "";
     try {
@@ -70,36 +79,43 @@ export default function MyUploadsPage() {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       return `${year}/${month}/${day}`;
-    } catch (error) {
+    } catch {
       return dateString;
     }
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={false} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-6xl">
         {/* 標題區 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-dark mb-2">管理我的上傳</h1>
-          <p className="text-gray-600">共 {novels.length} 本小說</p>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2
+                         text-neutral-900 dark:text-neutral-100">
+            管理我的上傳
+          </h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            共 {novels.length} 本小說
+          </p>
         </div>
 
         {/* 空狀態 */}
         {novels.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <div className="text-6xl mb-4">📚</div>
-            <h2 className="text-xl font-semibold text-dark mb-2">
+          <div className="p-12 text-center rounded-2xl border
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
+            <Library className="w-12 h-12 mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+            <h2 className="text-xl font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
               還沒有上傳任何小說
             </h2>
-            <p className="text-gray-600 mb-6">
-              開始上傳你的第一本小說，與大家分享你的創作！
+            <p className="mb-6 text-neutral-600 dark:text-neutral-400">
+              開始上傳你的第一本小說,與大家分享你的創作
             </p>
             <button
               onClick={() => navigate("/upload")}
-              className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 
-                       transition-colors font-semibold"
+              className="px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-primary text-white hover:bg-primary-dark"
             >
               立即上傳
             </button>
@@ -107,100 +123,119 @@ export default function MyUploadsPage() {
         ) : (
           /* 小說列表 */
           <div className="space-y-4">
-            {novels.map((novel) => (
-              <div
-                key={novel.id}
-                className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow"
-              >
-                <div className="flex gap-4">
-                  {/* 封面縮圖 */}
-                  <div className="flex-shrink-0 w-24 h-32 overflow-hidden rounded-md bg-gray-200">
-                    <img
-                      src={novel.coverImage}
-                      alt={novel.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+            {novels.map((novel) => {
+              const isDefaultCover =
+                !novel.coverImage || novel.coverImage === DEFAULT_COVER_PATH;
+              return (
+                <div
+                  key={novel.id}
+                  className="p-4 rounded-2xl border transition-all
+                             bg-white border-neutral-200 hover:border-neutral-300
+                             dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-neutral-700"
+                >
+                  <div className="flex gap-3 sm:gap-4">
+                    {/* 封面縮圖 */}
+                    <div className="flex-shrink-0 w-20 h-28 sm:w-24 sm:h-32 overflow-hidden rounded-md
+                                    bg-neutral-100 dark:bg-neutral-800">
+                      {isDefaultCover ? (
+                        <DefaultCover
+                          title={novel.title}
+                          author={novel.author}
+                          className="w-full h-full"
+                        />
+                      ) : (
+                        <img
+                          src={novel.coverImage}
+                          alt={novel.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
 
-                  {/* 資訊區 */}
-                  <div className="flex-1 min-w-0">
-                    {/* 標題 + 作者 */}
-                    <h3 className="text-lg font-bold text-dark mb-1 break-words">
-                      {novel.title}
-                    </h3>
-                    <p className="text-sm text-gray-500 mb-2">
-                      作者：{novel.author}
-                    </p>
+                    {/* 資訊區 */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold mb-1 break-words
+                                     text-neutral-900 dark:text-neutral-100">
+                        {novel.title}
+                      </h3>
+                      <p className="mb-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+                        作者:{novel.author}
+                      </p>
 
-                    {/* 標籤 */}
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {novel.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-0.5 text-xs rounded-full bg-light text-primary 
-                                   border border-primary"
+                      {/* 標籤 */}
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {novel.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-0.5 text-[11px] rounded-full
+                                       bg-neutral-100 text-neutral-700
+                                       dark:bg-neutral-800 dark:text-neutral-300"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* 統計資訊 */}
+                      <div className="flex flex-wrap gap-3 sm:gap-4 mb-3 text-xs sm:text-sm
+                                      text-neutral-600 dark:text-neutral-400">
+                        <div>
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+                            {novel.chapters?.length || 0}
+                          </span>{" "}
+                          章節
+                        </div>
+                        <div>
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+                            {getTotalWords(novel.chapters).toLocaleString()}
+                          </span>{" "}
+                          字
+                        </div>
+                        <div>上傳:{formatDate(novel.createdAt)}</div>
+                      </div>
+
+                      {/* 操作按鈕 */}
+                      <div className="flex flex-wrap gap-2 sm:gap-3">
+                        <button
+                          onClick={() => handleEdit(novel)}
+                          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                                     bg-primary text-white hover:bg-primary-dark"
                         >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* 統計資訊 */}
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-3">
-                      <div>
-                        <span className="font-semibold text-dark">
-                          {novel.chapters?.length || 0}
-                        </span>{" "}
-                        章節
+                          編輯
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(novel)}
+                          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                                     bg-danger text-white hover:opacity-90"
+                        >
+                          刪除
+                        </button>
+                        <button
+                          onClick={() => navigate(`/novel/${getNavigateId(novel)}`)}
+                          className="px-4 py-2 text-sm font-medium rounded-lg transition-colors
+                                     bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                                     dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        >
+                          查看詳情
+                        </button>
                       </div>
-                      <div>
-                        <span className="font-semibold text-dark">
-                          {getTotalWords(novel.chapters).toLocaleString()}
-                        </span>{" "}
-                        字
-                      </div>
-                      <div>上傳日期：{formatDate(novel.createdAt)}</div>
-                    </div>
-
-                    {/* 操作按鈕 */}
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleEdit(novel.id)}
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 
-                                 transition-colors text-sm font-medium"
-                      >
-                        編輯
-                      </button>
-                      <button
-                        onClick={() => handleDeleteClick(novel)}
-                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 
-                                 transition-colors text-sm font-medium"
-                      >
-                        刪除
-                      </button>
-                      <button
-                        onClick={() => navigate(`/novel/${novel.id}`)}
-                        className="px-4 py-2 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 
-                                 transition-colors text-sm font-medium"
-                      >
-                        查看詳情
-                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </div>
+      </main>
 
-      {/* 刪除確認對話框 */}
+      <Footer />
+
       <ConfirmDialog
         isOpen={showDialog}
         title="確認刪除"
         message={
           novelToDelete
-            ? `確定要刪除《${novelToDelete.title}》嗎？此操作無法復原。`
+            ? `確定要刪除《${novelToDelete.title}》嗎?此操作無法復原。`
             : ""
         }
         confirmText="確定刪除"
