@@ -40,3 +40,26 @@ html {
 html.dark {
   color-scheme: dark;
 }
+
+/* ============================================
+   DefaultCover 漸層
+   - 用 CSS variable 讓同一個 component 自動切換 light/dark 版本漸層
+   - 變數值由 React 元件以 inline style 設定 (--cover-bg-light, --cover-bg-dark)
+   ============================================ */
+.default-cover {
+  background-image: var(--cover-bg-light);
+}
+html.dark .default-cover {
+  background-image: var(--cover-bg-dark);
+}
+
+/* ============================================
+   HeroSection 漸層
+   - 同 DefaultCover 邏輯,brand 紫色主視覺,dark mode 降一階
+   ============================================ */
+.hero-section {
+  background-image: var(--hero-bg-light);
+}
+html.dark .hero-section {
+  background-image: var(--hero-bg-dark);
+}
