@@ -1,9 +1,11 @@
 // ============================================
 // 檔案名稱: TxtUploadSection.js
 // 路徑: src/components/upload/TxtUploadSection.js
-// 用途: 小說內容輸入區（支援上傳 TXT 檔和直接貼上文字兩種方式）
+// 用途: 小說內容輸入區(支援上傳 TXT 檔和直接貼上文字兩種方式)
 // ============================================
+
 import React, { useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { parseNovelChapters } from "../../utils/parser";
 import ChapterPreview from "./ChapterPreview";
 
@@ -13,14 +15,12 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
   const [chapters, setChapters] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
 
-  // 直接輸入 tab 狀態
   const [pastedText, setPastedText] = useState("");
 
-  // ========== 解析文字（共用）==========
   const parseText = (text) => {
     const parsedChapters = parseNovelChapters(text);
     if (parsedChapters.length === 0) {
-      onError("無法解析章節，請確認格式（例如：第一章 標題）");
+      onError("無法解析章節,請確認格式(例如:第一章 標題)");
       setChapters([]);
       onChaptersChange([]);
       return false;
@@ -32,7 +32,6 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
     return true;
   };
 
-  // ========== TXT 上傳 ==========
   const handleTxtUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -48,14 +47,13 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
       parseText(text);
     } catch (err) {
       console.error("解析失敗:", err);
-      onError("檔案解析失敗，請檢查檔案內容");
+      onError("檔案解析失敗,請檢查檔案內容");
       onChaptersChange([]);
     } finally {
       setIsParsing(false);
     }
   };
 
-  // ========== 直接輸入解析 ==========
   const handleParseText = () => {
     if (!pastedText.trim()) {
       onError("請輸入小說內容");
@@ -66,14 +64,12 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
     setTimeout(() => {
       parseText(pastedText);
       setIsParsing(false);
-    }, 50); // 給 UI 一點時間更新
+    }, 50);
   };
 
-  // ========== 計算總字數 ==========
   const getTotalWords = () =>
     chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
 
-  // ========== 切換 tab 時清除結果 ==========
   const switchTab = (tab) => {
     setActiveTab(tab);
     setChapters([]);
@@ -83,20 +79,23 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <label className="block text-lg font-semibold text-dark mb-4">
-        小說內容 <span className="text-red-500">*</span>
+    <div className="rounded-2xl border p-5 sm:p-6
+                    bg-white border-neutral-200
+                    dark:bg-neutral-900 dark:border-neutral-800">
+      <label className="block text-lg font-semibold mb-4 text-neutral-900 dark:text-neutral-100">
+        小說內容 <span className="text-danger">*</span>
       </label>
 
-      {/* Tab 切換 */}
-      <div className="flex gap-2 mb-5">
+      {/* Tab 切換 — segmented control */}
+      <div className="inline-flex gap-1 p-1 mb-5 rounded-lg
+                      bg-neutral-100 dark:bg-neutral-800">
         <button
           type="button"
           onClick={() => switchTab("txt")}
-          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+          className={`px-4 py-1.5 rounded-md font-medium text-sm transition-all ${
             activeTab === "txt"
-              ? "bg-primary text-white"
-              : "bg-gray-100 text-dark hover:bg-gray-200"
+              ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+              : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
           }`}
         >
           上傳 TXT
@@ -104,10 +103,10 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
         <button
           type="button"
           onClick={() => switchTab("manual")}
-          className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+          className={`px-4 py-1.5 rounded-md font-medium text-sm transition-all ${
             activeTab === "manual"
-              ? "bg-primary text-white"
-              : "bg-gray-100 text-dark hover:bg-gray-200"
+              ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+              : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
           }`}
         >
           直接輸入
@@ -121,20 +120,23 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
             type="file"
             accept=".txt"
             onChange={handleTxtUpload}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
-                     file:rounded-lg file:border-0 file:text-sm file:font-semibold
-                     file:bg-primary file:text-white hover:file:bg-primary/90
-                     file:cursor-pointer cursor-pointer"
+            className="block w-full text-sm cursor-pointer
+                       text-neutral-500 dark:text-neutral-400
+                       file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0
+                       file:text-sm file:font-semibold file:cursor-pointer
+                       file:bg-primary file:text-white hover:file:bg-primary-dark"
           />
-          <p className="mt-2 text-xs text-gray-400">支援 UTF-8 編碼的 .txt 檔案</p>
+          <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+            支援 UTF-8 編碼的 .txt 檔案
+          </p>
         </div>
       )}
 
       {/* 直接輸入 */}
       {activeTab === "manual" && (
         <div>
-          <p className="text-sm text-gray-500 mb-3">
-            貼上小說全文，系統會自動依「第X章 標題」格式分章。
+          <p className="mb-3 text-sm text-neutral-500 dark:text-neutral-400">
+            貼上小說全文,系統會自動依「第X章 標題」格式分章。
           </p>
           <textarea
             value={pastedText}
@@ -145,16 +147,23 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
             }}
             placeholder={"第一章 開始\n\n這裡是第一章的內文...\n\n第二章 繼續\n\n這裡是第二章的內文..."}
             rows={14}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y font-mono text-sm"
+            className="w-full px-3 py-2 text-sm font-mono rounded-lg border resize-y
+                       bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                       focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                       dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
           />
           {pastedText && (
-            <p className="text-xs text-gray-400 mt-1">{pastedText.length.toLocaleString()} 字元</p>
+            <p className="mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+              {pastedText.length.toLocaleString()} 字元
+            </p>
           )}
           <button
             type="button"
             onClick={handleParseText}
             disabled={isParsing || !pastedText.trim()}
-            className="mt-3 px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 text-sm font-medium"
+            className="mt-3 px-5 py-2 rounded-lg text-sm font-medium transition-colors
+                       bg-primary text-white hover:bg-primary-dark
+                       disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isParsing ? "解析中..." : "解析章節"}
           </button>
@@ -162,22 +171,32 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
       )}
 
       {/* 解析中 */}
-      {isParsing && <div className="mt-4 text-primary text-sm">解析中...</div>}
+      {isParsing && (
+        <div className="mt-4 text-sm text-primary dark:text-primary-light">
+          解析中...
+        </div>
+      )}
 
       {/* 解析成功 */}
       {chapters.length > 0 && (
-        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-green-800 font-semibold">解析成功</p>
-              <p className="text-sm text-green-600 mt-1">
-                共 {chapters.length} 章，約 {getTotalWords().toLocaleString()} 字
-              </p>
+        <div className="mt-4 p-4 rounded-lg
+                        bg-success-light dark:bg-success/15">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-success" />
+              <div>
+                <p className="font-semibold text-success">解析成功</p>
+                <p className="text-sm mt-0.5 text-success/80 dark:text-success">
+                  共 {chapters.length} 章,約 {getTotalWords().toLocaleString()} 字
+                </p>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => setShowPreview(!showPreview)}
-              className="text-sm text-primary hover:underline"
+              className="text-sm font-medium transition-colors
+                         text-primary hover:text-primary-dark
+                         dark:text-primary-light dark:hover:text-primary"
             >
               {showPreview ? "隱藏" : "查看"}章節列表
             </button>
