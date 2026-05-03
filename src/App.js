@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { loadAllNovels } from "./utils/novelsHelper";
 import ScrollToTop from "./components/ScrollToTop";
+import Logo from "./components/Logo";
 import HomePage from "./pages/HomePage";
 import NovelDetailPage from "./pages/NovelDetailPage";
 import ReadingPage from "./pages/ReadingPage";
@@ -31,8 +33,13 @@ function App() {
 
   if (!novelsReady) {
     return (
-      <div className="min-h-screen bg-light flex items-center justify-center">
-        <p className="text-gray-400">載入中...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4
+                      bg-neutral-50 dark:bg-neutral-950">
+        <Logo className="w-12 h-12 text-primary dark:text-primary-light" />
+        <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          載入中...
+        </div>
       </div>
     );
   }
