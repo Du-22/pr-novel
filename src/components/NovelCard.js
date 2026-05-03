@@ -1,58 +1,88 @@
+// ============================================
+// 檔案名稱: NovelCard.js
+// 路徑: src/components/NovelCard.js
+// 用途: 小說卡片(grid 模式)— 顯示封面、標題、狀態、作者、簡介、標籤
+//       無封面時自動套用 DefaultCover 程式生成漸層封面
+// ============================================
+
 import React from "react";
 import { Link } from "react-router-dom";
+import DefaultCover from "./DefaultCover";
+
+const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
 
 const NovelCard = ({ novel }) => {
+  const isDefaultCover = !novel.coverImage || novel.coverImage === DEFAULT_COVER_PATH;
+
   return (
     <Link
       to={`/novel/${novel.id}`}
-      className="block bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden"
+      className="block overflow-hidden rounded-xl border transition-all duration-200
+                 bg-white border-neutral-200 hover:shadow-lg hover:-translate-y-0.5
+                 dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-neutral-700"
     >
       {/* 封面圖 */}
-      <div className="aspect-[4/5] overflow-hidden bg-gray-200">
-        <img
-          src={novel.coverImage}
-          alt={novel.title}
-          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-        />
+      <div className="aspect-[4/5] overflow-hidden bg-neutral-100 dark:bg-neutral-800">
+        {isDefaultCover ? (
+          <DefaultCover
+            title={novel.title}
+            author={novel.author}
+            className="w-full h-full"
+          />
+        ) : (
+          <img
+            src={novel.coverImage}
+            alt={novel.title}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        )}
       </div>
 
       {/* 內容區 */}
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         {/* 標題 + 狀態 */}
         <div className="flex items-start gap-2 mb-1">
-          <h3 className="text-lg font-bold text-dark line-clamp-1 break-words flex-1">
+          <h3 className="flex-1 text-base sm:text-lg font-bold line-clamp-1 break-words
+                         text-neutral-900 dark:text-neutral-100">
             {novel.title}
           </h3>
           {novel.status && (
-            <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${
-              novel.status === "completed"
-                ? "bg-blue-50 text-blue-600"
-                : "bg-green-50 text-green-600"
-            }`}>
+            <span
+              className={`flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded font-medium ${
+                novel.status === "completed"
+                  ? "bg-info-light text-info"
+                  : "bg-success-light text-success"
+              }`}
+            >
               {novel.status === "completed" ? "完結" : "連載"}
             </span>
           )}
         </div>
 
         {/* 作者 / 譯者 */}
-        <p className="text-sm text-gray-500 mb-2">
+        <p className="mb-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
           {novel.author}
           {novel.translator && (
-            <span className="text-gray-400"> · 譯: {novel.translator}</span>
+            <span className="text-neutral-400 dark:text-neutral-500">
+              {" "}· 譯: {novel.translator}
+            </span>
           )}
         </p>
 
         {/* 簡介 */}
-        <p className="text-sm text-gray-600 mb-3 line-clamp-3 leading-relaxed break-words">
+        <p className="mb-3 text-xs sm:text-sm line-clamp-2 sm:line-clamp-3 leading-relaxed break-words
+                      text-neutral-600 dark:text-neutral-400">
           {novel.summary}
         </p>
 
         {/* 標籤 */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {novel.tags.map((tag, index) => (
             <span
               key={index}
-              className="px-3 py-1 text-xs rounded-full bg-light text-primary border border-primary"
+              className="px-2.5 py-0.5 text-[11px] rounded-full
+                         bg-neutral-100 text-neutral-700
+                         dark:bg-neutral-800 dark:text-neutral-300"
             >
               {tag}
             </span>
