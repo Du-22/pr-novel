@@ -7,6 +7,28 @@
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/favicon-180x180.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#6C5CE7" />
+
+    <!-- Google Fonts: Noto Sans TC/SC (UI 黑體) + Noto Serif TC/SC (內文宋體) + Plus Jakarta Sans (英文 fallback)
+         SC 為 fallback,只在 SC 字符出現時透過 unicode-range 機制自動下載對應 subset -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+TC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Dark mode 抗 FOUC: React render 之前先設定好 <html.dark> class,
+         避免初始閃白。讀取順序: localStorage > prefers-color-scheme -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("pr-novel-theme");
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var isDark = saved === "dark" || (saved !== "light" && prefersDark);
+          if (isDark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <meta
       name="description"
       content="PR小說網 — 探索精彩故事，分享閱讀樂趣"

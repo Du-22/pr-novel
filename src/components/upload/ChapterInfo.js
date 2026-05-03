@@ -1,15 +1,21 @@
 // ============================================
 // 檔案名稱: ChapterInfo.js
 // 路徑: src/components/upload/ChapterInfo.js
-// 用途: 章節資訊與管理列表（顯示章節數量、支援編輯/刪除）
+// 用途: 章節資訊與管理列表(顯示章節數量、支援編輯/刪除新格式章節)
 // ============================================
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { deleteChapter } from "../../firebase/chapters";
 
-export default function ChapterInfo({ chapters, novelId, isNewFormat, onChapterDeleted }) {
+export default function ChapterInfo({
+  chapters,
+  novelId,
+  isNewFormat,
+  onChapterDeleted,
+}) {
   const navigate = useNavigate();
   const [deletingNum, setDeletingNum] = useState(null);
 
@@ -19,14 +25,12 @@ export default function ChapterInfo({ chapters, novelId, isNewFormat, onChapterD
   };
 
   const handleDelete = async (chapterNumber, chapterTitle) => {
-    if (!window.confirm(`確定要刪除「${chapterTitle}」嗎？此操作無法復原。`)) return;
+    if (!window.confirm(`確定要刪除「${chapterTitle}」嗎?此操作無法復原。`)) return;
 
     setDeletingNum(chapterNumber);
     try {
-      // 刪除子集合章節
       await deleteChapter(novelId, chapterNumber);
 
-      // 更新小說文件的 chapters metadata
       const novelRef = doc(db, "novels", novelId);
       const novelSnap = await getDoc(novelRef);
       if (novelSnap.exists()) {
@@ -38,41 +42,67 @@ export default function ChapterInfo({ chapters, novelId, isNewFormat, onChapterD
       }
     } catch (err) {
       console.error("刪除章節失敗:", err);
-      alert("刪除失敗，請稍後再試");
+      alert("刪除失敗,請稍後再試");
     } finally {
       setDeletingNum(null);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold text-dark mb-4">章節管理</h2>
+    <div className="rounded-2xl border p-5 sm:p-6
+                    bg-white border-neutral-200
+                    dark:bg-neutral-900 dark:border-neutral-800">
+      <h2 className="text-lg font-semibold mb-4 text-neutral-900 dark:text-neutral-100">
+        章節管理
+      </h2>
 
       {/* 統計 */}
-      <div className="flex gap-6 mb-4 text-gray-700 text-sm">
+      <div className="flex flex-wrap gap-4 sm:gap-6 mb-4 text-sm text-neutral-700 dark:text-neutral-300">
         <span>
-          共 <span className="font-semibold text-dark">{chapters.length}</span> 章
+          共{" "}
+          <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+            {chapters.length}
+          </span>{" "}
+          章
         </span>
         <span>
-          總字數：<span className="font-semibold text-dark">{getTotalWords().toLocaleString()}</span> 字
+          總字數:{" "}
+          <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+            {getTotalWords().toLocaleString()}
+          </span>{" "}
+          字
         </span>
       </div>
 
-      {/* 章節列表（僅新格式顯示操作按鈕） */}
+      {/* 章節列表(僅新格式顯示操作按鈕) */}
       {chapters.length > 0 && (
-        <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-80 overflow-y-auto">
+        <div className="border rounded-lg max-h-80 overflow-y-auto divide-y
+                        border-neutral-200 divide-neutral-100
+                        dark:border-neutral-800 dark:divide-neutral-800">
           {chapters.map((ch) => (
-            <div key={ch.chapterNumber} className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
+            <div
+              key={ch.chapterNumber}
+              className="flex items-center justify-between gap-3 px-4 py-2 transition-colors
+                         hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
+            >
               <div className="flex-1 min-w-0">
-                <span className="text-sm text-dark truncate block">{ch.title}</span>
-                <span className="text-xs text-gray-400">{(ch.wordCount || 0).toLocaleString()} 字</span>
+                <span className="block text-sm truncate text-neutral-900 dark:text-neutral-100">
+                  {ch.title}
+                </span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                  {(ch.wordCount || 0).toLocaleString()} 字
+                </span>
               </div>
               {isNewFormat && (
-                <div className="flex gap-2 ml-3 shrink-0">
+                <div className="flex gap-2 flex-shrink-0">
                   <button
                     type="button"
-                    onClick={() => navigate(`/my-uploads/edit/${novelId}/chapter/${ch.chapterNumber}`)}
-                    className="px-3 py-1 text-xs bg-secondary/20 text-primary rounded hover:bg-secondary/40 transition-colors"
+                    onClick={() =>
+                      navigate(`/my-uploads/edit/${novelId}/chapter/${ch.chapterNumber}`)
+                    }
+                    className="px-3 py-1 text-xs rounded transition-colors
+                               bg-primary/10 text-primary hover:bg-primary/20
+                               dark:bg-primary/20 dark:text-primary-light dark:hover:bg-primary/30"
                   >
                     編輯
                   </button>
@@ -80,7 +110,10 @@ export default function ChapterInfo({ chapters, novelId, isNewFormat, onChapterD
                     type="button"
                     onClick={() => handleDelete(ch.chapterNumber, ch.title)}
                     disabled={deletingNum === ch.chapterNumber}
-                    className="px-3 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 transition-colors disabled:opacity-50"
+                    className="px-3 py-1 text-xs rounded transition-colors
+                               bg-danger-light text-danger hover:opacity-80
+                               dark:bg-danger/15 dark:text-danger
+                               disabled:opacity-50"
                   >
                     {deletingNum === ch.chapterNumber ? "刪除中" : "刪除"}
                   </button>
@@ -92,7 +125,9 @@ export default function ChapterInfo({ chapters, novelId, isNewFormat, onChapterD
       )}
 
       {chapters.length === 0 && (
-        <p className="text-sm text-gray-400">目前沒有章節</p>
+        <p className="text-sm text-neutral-400 dark:text-neutral-500">
+          目前沒有章節
+        </p>
       )}
     </div>
   );

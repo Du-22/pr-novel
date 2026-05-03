@@ -18,9 +18,8 @@ export const loadAllNovels = async () => {
     const novels = await fetchAllFromFirestore();
     _cache = novels;
     _loaded = true;
-    console.log(`✅ 載入 ${novels.length} 本小說`);
   } catch (error) {
-    console.error("❌ 載入小說失敗:", error);
+    console.error("載入小說失敗:", error);
   }
 };
 

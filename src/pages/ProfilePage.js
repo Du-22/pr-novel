@@ -1,11 +1,14 @@
 // ============================================
 // 檔案名稱: ProfilePage.js
 // 路徑: src/pages/ProfilePage.js
-// 用途: 個人中心（收藏/作品/閱讀記錄 Tab + 簡介編輯）
+// 用途: 個人中心 — 收藏 / 作品 / 閱讀記錄 Tab + 簡介編輯 + 更改密碼
 // ============================================
+
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Heart, BookMarked, History } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import MyFavorites from "../components/profile/MyFavorites";
 import MyWorks from "../components/profile/MyWorks";
 import ReadingHistory from "../components/profile/ReadingHistory";
@@ -13,6 +16,12 @@ import ChangePasswordDialog from "../components/ChangePasswordDialog";
 import { useAuth } from "../hooks/useAuth";
 import { getUserProfile, updateUserProfile } from "../firebase/users";
 import { updateDisplayName } from "../firebase/auth";
+
+const TABS = [
+  { id: "favorites", label: "我的收藏", Icon: Heart },
+  { id: "works", label: "我的作品", Icon: BookMarked },
+  { id: "history", label: "閱讀記錄", Icon: History },
+];
 
 export default function ProfilePage() {
   const [searchParams] = useSearchParams();
@@ -31,12 +40,10 @@ export default function ProfilePage() {
 
   const [showChangePassword, setShowChangePassword] = useState(false);
 
-  // 僅 Email/Password 使用者可更改密碼（Google 登入者無密碼）
   const isEmailUser = user?.providerData?.some(
     (p) => p.providerId === "password"
   );
 
-  // 載入使用者簡介
   useEffect(() => {
     if (!user) return;
     getUserProfile(user.uid).then((profile) => {
@@ -56,7 +63,7 @@ export default function ProfilePage() {
       await updateUserProfile(user.uid, { displayName: nameInput.trim() });
       setEditingName(false);
     } catch {
-      alert("儲存失敗，請稍後再試");
+      alert("儲存失敗,請稍後再試");
     } finally {
       setSavingName(false);
     }
@@ -70,7 +77,7 @@ export default function ProfilePage() {
       setBio(bioInput.trim());
       setEditingBio(false);
     } catch {
-      alert("儲存失敗，請稍後再試");
+      alert("儲存失敗,請稍後再試");
     } finally {
       setSavingBio(false);
     }
@@ -79,14 +86,6 @@ export default function ProfilePage() {
   const displayName = user?.displayName || user?.email?.split("@")[0] || "使用者";
   const initial = displayName.charAt(0).toUpperCase();
 
-  // Tab 配置
-  const tabs = [
-    { id: "favorites", label: "我的收藏", icon: "💜" },
-    { id: "works", label: "我的作品", icon: "📝" },
-    { id: "history", label: "閱讀記錄", icon: "📖" },
-  ];
-
-  // 渲染內容
   const renderContent = () => {
     switch (activeTab) {
       case "favorites":
@@ -101,55 +100,76 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={false} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* 使用者資訊卡 */}
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-6xl space-y-6 md:space-y-8">
+        {/* ========== 使用者資訊卡 ========== */}
         {user && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="rounded-2xl border p-5 sm:p-6
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
             <div className="flex items-start gap-4">
               {/* 頭像 */}
-              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0
+                              bg-primary dark:bg-primary-dark">
                 <span className="text-2xl font-bold text-white">{initial}</span>
               </div>
 
               {/* 名稱 + 簡介 */}
               <div className="flex-1 min-w-0">
                 {editingName ? (
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <input
                       type="text"
                       value={nameInput}
                       onChange={(e) => setNameInput(e.target.value)}
                       maxLength={20}
-                      className="px-2 py-1 border border-gray-300 rounded-lg text-sm font-bold
-                               focus:ring-2 focus:ring-primary focus:border-transparent w-40"
+                      className="px-2 py-1 text-sm font-bold rounded-lg border w-40
+                                 bg-white text-neutral-900 border-neutral-300
+                                 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                                 dark:bg-neutral-800 dark:text-neutral-100 dark:border-neutral-700"
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleSaveName();
                         if (e.key === "Escape") setEditingName(false);
                       }}
                       autoFocus
                     />
-                    <button onClick={handleSaveName} disabled={savingName}
-                      className="text-xs text-primary hover:text-primary/80 transition-colors">
+                    <button
+                      onClick={handleSaveName}
+                      disabled={savingName}
+                      className="text-xs font-medium transition-colors
+                                 text-primary hover:text-primary-dark
+                                 dark:text-primary-light dark:hover:text-primary"
+                    >
                       {savingName ? "儲存中..." : "確認"}
                     </button>
-                    <button onClick={() => setEditingName(false)}
-                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+                    <button
+                      onClick={() => setEditingName(false)}
+                      className="text-xs transition-colors
+                                 text-neutral-400 hover:text-neutral-700
+                                 dark:text-neutral-500 dark:hover:text-neutral-300"
+                    >
                       取消
                     </button>
                   </div>
                 ) : (
                   <h1
-                    onClick={() => { setNameInput(displayName); setEditingName(true); }}
-                    className="text-xl font-bold text-dark mb-1 cursor-pointer hover:bg-light rounded px-2 py-0.5 -mx-2 inline-block transition-colors"
+                    onClick={() => {
+                      setNameInput(displayName);
+                      setEditingName(true);
+                    }}
+                    className="inline-block text-xl font-bold mb-1 px-2 py-0.5 -mx-2 rounded cursor-pointer transition-colors
+                               text-neutral-900 hover:bg-neutral-100
+                               dark:text-neutral-100 dark:hover:bg-neutral-800"
                     title="點擊修改暱稱"
                   >
                     {displayName}
                   </h1>
                 )}
-                <p className="text-sm text-gray-400 mb-3">{user.email}</p>
+                <p className="text-sm mb-3 text-neutral-400 dark:text-neutral-500">
+                  {user.email}
+                </p>
 
                 {editingBio ? (
                   <div className="space-y-2">
@@ -159,23 +179,33 @@ export default function ProfilePage() {
                       placeholder="介紹一下自己吧..."
                       maxLength={200}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm
-                               focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
+                      className="w-full px-3 py-2 text-sm rounded-lg border resize-none
+                                 bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                                 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                                 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
                     />
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">{bioInput.length}/200</span>
+                      <span className="text-xs text-neutral-400 dark:text-neutral-500">
+                        {bioInput.length}/200
+                      </span>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => { setBioInput(bio); setEditingBio(false); }}
-                          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+                          onClick={() => {
+                            setBioInput(bio);
+                            setEditingBio(false);
+                          }}
+                          className="px-3 py-1.5 text-sm transition-colors
+                                     text-neutral-600 hover:text-neutral-900
+                                     dark:text-neutral-400 dark:hover:text-neutral-100"
                         >
                           取消
                         </button>
                         <button
                           onClick={handleSaveBio}
                           disabled={savingBio}
-                          className="px-4 py-1.5 text-sm bg-primary text-white rounded-lg
-                                   hover:bg-primary/90 transition-colors disabled:opacity-60"
+                          className="px-4 py-1.5 text-sm rounded-lg font-medium transition-colors
+                                     bg-primary text-white hover:bg-primary-dark
+                                     disabled:opacity-60"
                         >
                           {savingBio ? "儲存中..." : "儲存"}
                         </button>
@@ -185,21 +215,27 @@ export default function ProfilePage() {
                 ) : (
                   <p
                     onClick={() => setEditingBio(true)}
-                    className="text-sm break-words cursor-pointer hover:bg-light rounded px-2 py-1 -mx-2 -my-1 transition-colors"
+                    className="text-sm break-words cursor-pointer px-2 py-1 -mx-2 -my-1 rounded transition-colors
+                               text-neutral-700 hover:bg-neutral-100
+                               dark:text-neutral-300 dark:hover:bg-neutral-800"
                     title="點擊編輯自我介紹"
                   >
-                    {bio || <span className="text-gray-400 italic">未填寫自我介紹</span>}
+                    {bio || (
+                      <span className="italic text-neutral-400 dark:text-neutral-500">
+                        未填寫自我介紹
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
 
-              {/* 右上角操作按鈕（僅 Email 使用者顯示） */}
+              {/* 右上角操作按鈕 (僅 Email 使用者) */}
               {isEmailUser && (
                 <button
                   onClick={() => setShowChangePassword(true)}
-                  className="flex-shrink-0 px-3 py-1.5 text-sm border border-gray-300 rounded-lg
-                           text-gray-600 hover:border-primary hover:text-primary transition-colors
-                           whitespace-nowrap"
+                  className="flex-shrink-0 px-3 py-1.5 text-sm rounded-lg border whitespace-nowrap transition-colors
+                             text-neutral-700 border-neutral-300 hover:border-primary hover:text-primary
+                             dark:text-neutral-300 dark:border-neutral-700 dark:hover:border-primary-light dark:hover:text-primary-light"
                 >
                   更改密碼
                 </button>
@@ -208,34 +244,38 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Tab 切換按鈕 */}
-        <div className="bg-white rounded-lg shadow-md p-2 mb-8">
-          <div className="flex gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex-1 px-2 sm:px-6 py-3 rounded-lg font-semibold text-sm sm:text-base transition-all duration-200 whitespace-nowrap
-                  ${
-                    activeTab === tab.id
-                      ? "bg-primary text-white shadow-md"
-                      : "bg-transparent text-gray-600 hover:bg-light"
-                  }
-                `}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.label}
-              </button>
-            ))}
+        {/* ========== Tab 切換 (segmented control) ========== */}
+        <div className="rounded-xl p-1.5
+                        bg-neutral-100 dark:bg-neutral-800">
+          <div className="flex gap-1">
+            {TABS.map((tab) => {
+              const Icon = tab.Icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 px-3 sm:px-6 py-2.5 rounded-lg font-semibold text-sm sm:text-base transition-all whitespace-nowrap ${
+                    isActive
+                      ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                      : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* 內容區 */}
-        <div className="transition-all duration-300">{renderContent()}</div>
-      </div>
+        {/* ========== 內容區 ========== */}
+        <div>{renderContent()}</div>
+      </main>
 
-      {/* 更改密碼對話框 */}
+      <Footer />
+
+      {/* ========== 更改密碼對話框 ========== */}
       <ChangePasswordDialog
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}

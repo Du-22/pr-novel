@@ -1,5 +1,12 @@
+// ============================================
+// 檔案名稱: MyFavorites.js
+// 路徑: src/components/profile/MyFavorites.js
+// 用途: 個人中心「我的收藏」Tab — 顯示收藏的小說 (grid/list 切換) + 取消收藏
+// ============================================
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Heart } from "lucide-react";
 import NovelCard from "../NovelCard";
 import NovelListItem from "../NovelListItem";
 import ViewToggle from "../ViewToggle";
@@ -16,9 +23,8 @@ export default function MyFavorites() {
   const navigate = useNavigate();
   const [favoriteNovels, setFavoriteNovels] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState("grid"); // "grid" | "list"
+  const [view, setView] = useState("grid");
 
-  // 載入收藏的小說
   useEffect(() => {
     loadFavorites();
   }, []);
@@ -47,9 +53,8 @@ export default function MyFavorites() {
     setLoading(false);
   };
 
-  // 取消收藏
   const handleRemoveFavorite = async (novelId) => {
-    const confirmRemove = window.confirm("確定要取消收藏嗎？");
+    const confirmRemove = window.confirm("確定要取消收藏嗎?");
     if (!confirmRemove) return;
 
     await removeFavorite(novelId);
@@ -57,7 +62,6 @@ export default function MyFavorites() {
     loadFavorites();
   };
 
-  // 格式化日期
   const formatDate = (dateString) => {
     if (!dateString) return "";
     try {
@@ -66,7 +70,7 @@ export default function MyFavorites() {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
       return `${year}/${month}/${day}`;
-    } catch (error) {
+    } catch {
       return dateString;
     }
   };
@@ -76,18 +80,20 @@ export default function MyFavorites() {
   // 空狀態
   if (favoriteNovels.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-12 text-center">
-        <div className="text-6xl mb-4">💜</div>
-        <h2 className="text-xl font-semibold text-dark mb-2">
+      <div className="p-12 text-center rounded-2xl border
+                      bg-white border-neutral-200
+                      dark:bg-neutral-900 dark:border-neutral-800">
+        <Heart className="w-12 h-12 mx-auto mb-4 text-neutral-300 dark:text-neutral-700" />
+        <h2 className="text-xl font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
           還沒有收藏任何小說
         </h2>
-        <p className="text-gray-600 mb-6">
-          快去探索喜歡的小說，點擊「加入收藏」按鈕吧！
+        <p className="mb-6 text-neutral-600 dark:text-neutral-400">
+          快去探索喜歡的小說,點擊「加入收藏」按鈕吧
         </p>
         <button
           onClick={() => navigate("/")}
-          className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 
-                   transition-colors font-semibold"
+          className="px-6 py-3 rounded-lg font-semibold transition-colors
+                     bg-primary text-white hover:bg-primary-dark"
         >
           去首頁看看
         </button>
@@ -99,9 +105,9 @@ export default function MyFavorites() {
     <div className="space-y-6">
       {/* 標題列 */}
       <div className="flex items-center justify-between">
-        <div className="text-gray-600">
+        <div className="text-sm text-neutral-600 dark:text-neutral-400">
           共收藏{" "}
-          <span className="font-semibold text-primary">
+          <span className="font-semibold text-primary dark:text-primary-light">
             {favoriteNovels.length}
           </span>{" "}
           本小說
@@ -111,11 +117,13 @@ export default function MyFavorites() {
 
       {/* 格狀模式 */}
       {view === "grid" && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
           {favoriteNovels.map((novel) => (
             <div key={novel.id} className="relative">
               <NovelCard novel={novel} />
-              <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-md text-xs text-gray-600">
+              <div className="absolute top-2 right-2 px-2 py-1 rounded-md text-xs backdrop-blur-sm
+                              bg-white/90 text-neutral-600
+                              dark:bg-neutral-900/90 dark:text-neutral-300">
                 收藏於 {formatDate(novel.favoriteTime)}
               </div>
               <button
@@ -123,8 +131,8 @@ export default function MyFavorites() {
                   e.preventDefault();
                   handleRemoveFavorite(novel.id);
                 }}
-                className="absolute bottom-4 right-4 px-4 py-2 bg-red-500 text-white rounded-lg
-                         hover:bg-red-600 transition-colors text-sm font-medium shadow-md hover:shadow-lg"
+                className="absolute bottom-4 right-4 px-3 py-1.5 text-xs font-medium rounded-lg shadow-md transition-colors
+                           bg-danger text-white hover:opacity-90"
               >
                 取消收藏
               </button>
@@ -135,7 +143,7 @@ export default function MyFavorites() {
 
       {/* 列表模式 */}
       {view === "list" && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {favoriteNovels.map((novel) => (
             <div key={novel.id} className="relative">
               <NovelListItem novel={novel} />
@@ -144,8 +152,8 @@ export default function MyFavorites() {
                   e.preventDefault();
                   handleRemoveFavorite(novel.id);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-red-500 text-white
-                         rounded-lg hover:bg-red-600 transition-colors text-xs font-medium shadow-sm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 px-3 py-1.5 text-xs font-medium rounded-lg shadow-sm transition-colors
+                           bg-danger text-white hover:opacity-90"
               >
                 取消收藏
               </button>

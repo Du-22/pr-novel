@@ -1,0 +1,25 @@
+{
+  "short_name": "PR小說網",
+  "name": "PR 小說網 — 探索精彩故事,分享閱讀樂趣",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "favicon-32x32.png",
+      "type": "image/png",
+      "sizes": "32x32"
+    },
+    {
+      "src": "favicon-180x180.png",
+      "type": "image/png",
+      "sizes": "180x180"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#6C5CE7",
+  "background_color": "#FFFFFF"
+}

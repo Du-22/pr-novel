@@ -1,5 +1,13 @@
+// ============================================
+// 檔案名稱: TagsPage.js
+// 路徑: src/pages/TagsPage.js
+// 用途: 標籤篩選頁 — 多選標籤 (AND 邏輯) + 排序 + grid/list 切換
+// ============================================
+
 import React, { useState, useEffect, useMemo } from "react";
+import { X, ChevronUp, ChevronDown } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import NovelCard from "../components/NovelCard";
 import NovelListItem from "../components/NovelListItem";
 import ViewToggle from "../components/ViewToggle";
@@ -11,142 +19,122 @@ export default function TagsPage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortBy, setSortBy] = useState(
     () => sessionStorage.getItem("tagsSortBy") || "new"
-  ); // 'new' | 'views' | 'favorites'
+  );
   const [filteredNovels, setFilteredNovels] = useState([]);
   const [view, setView] = useState("grid");
 
-  // 動態計算所有標籤 (包含上傳的小說)
-  const allTags = useMemo(() => {
-    return getAllTags();
-  }, []); // 空依賴,只在初次載入時計算
+  const allTags = useMemo(() => getAllTags(), []);
 
-  // 當選擇的標籤或排序改變時,更新篩選結果
   useEffect(() => {
-    updateFilteredNovels();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTags, sortBy]);
-
-  // ========== 更新篩選結果 ==========
-  const updateFilteredNovels = () => {
-    // 取得所有小說 (mockData + 上傳的)
     let novels = getAllNovels();
-
-    // 1. 標籤篩選 (AND 邏輯)
     if (selectedTags.length > 0) {
       novels = novels.filter((novel) =>
         selectedTags.every((tag) => novel.tags.includes(tag))
       );
     }
+    setFilteredNovels(getRankingData(novels, sortBy));
+  }, [selectedTags, sortBy]);
 
-    // 2. 排序
-    const sortedNovels = getRankingData(novels, sortBy);
-
-    setFilteredNovels(sortedNovels);
-  };
-
-  // ========== 切換標籤選擇 ==========
   const toggleTag = (tag) => {
-    if (selectedTags.includes(tag)) {
-      setSelectedTags(selectedTags.filter((t) => t !== tag));
-    } else {
-      setSelectedTags([...selectedTags, tag]);
-    }
+    setSelectedTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+    );
   };
 
-  // ========== 移除單個標籤 ==========
   const removeTag = (tag) => {
-    setSelectedTags(selectedTags.filter((t) => t !== tag));
+    setSelectedTags((prev) => prev.filter((t) => t !== tag));
   };
 
-  // ========== 清空所有標籤 ==========
-  const clearAllTags = () => {
-    setSelectedTags([]);
-  };
+  const clearAllTags = () => setSelectedTags([]);
 
-  // ========== 計算顯示的標籤 ==========
   const displayedTags = isExpanded ? allTags : allTags.slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={true} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-7xl">
         {/* ========== 頁面標題 ========== */}
-        <h1 className="text-3xl font-bold text-dark mb-8 text-center">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-8 text-center
+                       text-neutral-900 dark:text-neutral-100">
           標籤篩選
         </h1>
 
         {/* ========== 已選標籤區 ========== */}
-        <div
-          className={`bg-white rounded-lg shadow-md mb-6 overflow-hidden transition-all duration-300
-    ${selectedTags.length > 0 ? "p-6 opacity-100" : "p-0 h-0 opacity-0"}`}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-dark">
-              已選標籤 ({selectedTags.length})
-            </h2>
-            <button
-              onClick={clearAllTags}
-              className="text-sm text-primary hover:text-primary/80 transition-colors"
-            >
-              清空全部
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            {selectedTags.map((tag) => (
-              <div
-                key={tag}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full 
-                 bg-primary text-white shadow-md"
+        {selectedTags.length > 0 && (
+          <div className="mb-6 p-5 rounded-xl border
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100">
+                已選標籤 ({selectedTags.length})
+              </h2>
+              <button
+                onClick={clearAllTags}
+                className="text-sm font-medium transition-colors
+                           text-primary hover:text-primary-dark
+                           dark:text-primary-light dark:hover:text-primary"
               >
-                <span>{tag}</span>
-                <button
-                  onClick={() => removeTag(tag)}
-                  className="hover:text-pink transition-colors text-lg leading-none"
+                清空全部
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedTags.map((tag) => (
+                <div
+                  key={tag}
+                  className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full
+                             bg-primary text-white text-sm shadow-sm"
                 >
-                  ✕
-                </button>
-              </div>
-            ))}
+                  <span>{tag}</span>
+                  <button
+                    onClick={() => removeTag(tag)}
+                    className="p-0.5 rounded-full hover:bg-white/20 transition-colors"
+                    aria-label={`移除 ${tag}`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ========== 所有標籤區 ========== */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-semibold text-dark mb-4">所有標籤</h2>
-          <div className="flex flex-wrap gap-3 mb-4">
+        <div className="mb-6 p-5 rounded-xl border
+                        bg-white border-neutral-200
+                        dark:bg-neutral-900 dark:border-neutral-800">
+          <h2 className="text-base font-semibold mb-4 text-neutral-900 dark:text-neutral-100">
+            所有標籤
+          </h2>
+          <div className="flex flex-wrap gap-2 mb-4">
             {displayedTags.map((tag) => (
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
-                className={`px-4 py-2 rounded-full transition-all duration-200
-                  ${
-                    selectedTags.includes(tag)
-                      ? "bg-primary text-white shadow-md hover:shadow-lg"
-                      : "bg-white text-gray-600 border border-gray-300 hover:border-primary hover:shadow-md"
-                  }`}
+                className={`px-3 py-1.5 rounded-full text-sm transition-all ${
+                  selectedTags.includes(tag)
+                    ? "bg-primary text-white shadow-sm"
+                    : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100"
+                }`}
               >
                 {tag}
               </button>
             ))}
           </div>
 
-          {/* 展開/收起按鈕 */}
           {allTags.length > 10 && (
             <div className="text-center">
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="text-primary hover:text-primary/80 transition-colors
-                         font-medium inline-flex items-center gap-2"
+                className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors
+                           text-primary hover:text-primary-dark
+                           dark:text-primary-light dark:hover:text-primary"
               >
+                {isExpanded ? "收起" : "展開查看全部標籤"}
                 {isExpanded ? (
-                  <>
-                    收起 <span className="text-sm">▲</span>
-                  </>
+                  <ChevronUp className="w-4 h-4" />
                 ) : (
-                  <>
-                    展開查看全部標籤 <span className="text-sm">▼</span>
-                  </>
+                  <ChevronDown className="w-4 h-4" />
                 )}
               </button>
             </div>
@@ -154,27 +142,30 @@ export default function TagsPage() {
         </div>
 
         {/* ========== 排序 & 結果統計 ========== */}
-        <div className="flex items-center justify-between mb-6">
-          <p className="text-gray-600">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
             找到{" "}
-            <span className="font-semibold text-dark">
+            <strong className="text-neutral-900 dark:text-neutral-100">
               {filteredNovels.length}
-            </span>{" "}
+            </strong>{" "}
             本小說
           </p>
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-gray-600">排序:</span>
+              <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                排序:
+              </span>
               <select
                 value={sortBy}
                 onChange={(e) => {
                   sessionStorage.setItem("tagsSortBy", e.target.value);
                   setSortBy(e.target.value);
                 }}
-                className="px-4 py-2 border border-gray-300 rounded-lg
-                         focus:outline-none focus:ring-2 focus:ring-primary/50
-                         bg-white text-dark cursor-pointer"
+                className="px-3 py-1.5 text-sm rounded-lg border cursor-pointer
+                           bg-white text-neutral-900 border-neutral-300
+                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                           dark:bg-neutral-900 dark:text-neutral-100 dark:border-neutral-700"
               >
                 <option value="new">最新上架</option>
                 <option value="favorites">最多收藏</option>
@@ -187,26 +178,32 @@ export default function TagsPage() {
 
         {/* ========== 篩選結果 ========== */}
         {filteredNovels.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <p className="text-gray-500 text-lg">找不到符合條件的小說 😢</p>
-            <p className="text-gray-400 text-sm mt-2">
+          <div className="p-12 text-center rounded-xl border
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
+            <p className="text-lg mb-2 text-neutral-600 dark:text-neutral-400">
+              找不到符合條件的小說
+            </p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-500">
               試試看調整篩選條件或清空標籤
             </p>
           </div>
         ) : view === "grid" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
             {filteredNovels.map((novel) => (
               <NovelCard key={novel.id} novel={novel} />
             ))}
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filteredNovels.map((novel) => (
               <NovelListItem key={novel.id} novel={novel} />
             ))}
           </div>
         )}
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

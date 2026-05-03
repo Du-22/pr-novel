@@ -1,11 +1,13 @@
 // ============================================
 // 檔案名稱: UserProfilePage.js
 // 路徑: src/pages/UserProfilePage.js
-// 用途: 公開使用者頁面（顯示上傳作品與收藏）
+// 用途: 公開使用者頁面 — 顯示其他使用者的上傳作品與收藏
 // ============================================
+
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import NovelCard from "../components/NovelCard";
 import { getUserNovels } from "../firebase/novels";
 import { getSubCollectionDocs } from "../firebase/firestore";
@@ -26,7 +28,6 @@ export default function UserProfilePage() {
     const load = async () => {
       setLoading(true);
       try {
-        // 取得使用者公開資料（顯示名稱、簡介）
         const profile = await getUserProfile(uid);
         if (!profile) {
           setNotFound(true);
@@ -35,11 +36,9 @@ export default function UserProfilePage() {
         setUploaderName(profile?.displayName || "");
         setBio(profile?.bio || "");
 
-        // 取得上傳作品
         const novels = await getUserNovels(uid);
         setUploads(novels);
 
-        // 取得收藏清單
         const favDocs = await getSubCollectionDocs(`favorites/${uid}`, "novels");
         const allNovels = getAllNovels();
         const favNovels = favDocs
@@ -57,91 +56,112 @@ export default function UserProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
-  const tabs = [
-    { id: "uploads", label: `上傳作品 (${uploads.length})` },
-    { id: "favorites", label: `收藏 (${favorites.length})` },
-  ];
-
   const displayName = uploaderName || "使用者";
   const initial = displayName.charAt(0).toUpperCase();
 
   if (notFound) {
     return (
-      <div className="min-h-screen bg-light">
+      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
         <Navbar showBackButton={true} />
-        <div className="max-w-7xl mx-auto px-4 py-24 text-center">
-          <p className="text-gray-400 text-lg mb-4">找不到此使用者</p>
-          <a href="/" className="text-primary hover:underline text-sm">回到首頁</a>
-        </div>
+        <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-24 text-center">
+          <p className="mb-4 text-lg text-neutral-500 dark:text-neutral-400">
+            找不到此使用者
+          </p>
+          <Link
+            to="/"
+            className="text-sm transition-colors
+                       text-primary hover:text-primary-dark hover:underline
+                       dark:text-primary-light dark:hover:text-primary"
+          >
+            回到首頁
+          </Link>
+        </main>
+        <Footer />
       </div>
     );
   }
 
+  const tabs = [
+    { id: "uploads", label: `上傳作品 (${uploads.length})` },
+    { id: "favorites", label: `收藏 (${favorites.length})` },
+  ];
+
+  const activeNovels = activeTab === "uploads" ? uploads : favorites;
+  const emptyMsg =
+    activeTab === "uploads"
+      ? "此使用者尚未上傳任何作品"
+      : "此使用者尚未收藏任何作品";
+
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={true} />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-6xl space-y-6 md:space-y-8">
         {/* 使用者資訊 */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8 flex items-center gap-4">
-          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+        <div className="rounded-2xl border p-5 sm:p-6 flex items-center gap-4
+                        bg-white border-neutral-200
+                        dark:bg-neutral-900 dark:border-neutral-800">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center flex-shrink-0
+                          bg-primary dark:bg-primary-dark">
             <span className="text-2xl font-bold text-white">{initial}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-dark">{displayName}</h1>
-            <p className="text-gray-500 text-sm mb-2">
-              {uploads.length} 部作品・{favorites.length} 個收藏
+            <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+              {displayName}
+            </h1>
+            <p className="mb-2 text-sm text-neutral-500 dark:text-neutral-400">
+              {uploads.length} 部作品 · {favorites.length} 個收藏
             </p>
             {bio && (
-              <p className="text-sm text-gray-600 break-words">{bio}</p>
+              <p className="text-sm break-words text-neutral-600 dark:text-neutral-400">
+                {bio}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Tab */}
-        <div className="bg-white rounded-lg shadow-md p-2 mb-8">
-          <div className="flex gap-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 px-4 py-3 rounded-lg font-semibold text-sm transition-all duration-200
-                  ${activeTab === tab.id
-                    ? "bg-primary text-white shadow-md"
-                    : "bg-transparent text-gray-600 hover:bg-light"
+        {/* Tab — segmented control */}
+        <div className="rounded-xl p-1.5
+                        bg-neutral-100 dark:bg-neutral-800">
+          <div className="flex gap-1">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-semibold text-sm transition-all whitespace-nowrap ${
+                    isActive
+                      ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                      : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
                   }`}
-              >
-                {tab.label}
-              </button>
-            ))}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* 內容 */}
         {loading ? (
-          <p className="text-center text-gray-500 py-16">載入中...</p>
-        ) : activeTab === "uploads" ? (
-          uploads.length === 0 ? (
-            <p className="text-center text-gray-500 py-16">此使用者尚未上傳任何作品</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {uploads.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
-          )
+          <p className="text-center py-16 text-neutral-500 dark:text-neutral-400">
+            載入中...
+          </p>
+        ) : activeNovels.length === 0 ? (
+          <p className="text-center py-16 text-neutral-500 dark:text-neutral-400">
+            {emptyMsg}
+          </p>
         ) : (
-          favorites.length === 0 ? (
-            <p className="text-center text-gray-500 py-16">此使用者尚未收藏任何作品</p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {favorites.map((novel) => (
-                <NovelCard key={novel.id} novel={novel} />
-              ))}
-            </div>
-          )
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            {activeNovels.map((novel) => (
+              <NovelCard key={novel.id} novel={novel} />
+            ))}
+          </div>
         )}
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

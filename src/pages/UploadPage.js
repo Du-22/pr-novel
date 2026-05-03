@@ -1,6 +1,14 @@
+// ============================================
+// 檔案名稱: UploadPage.js
+// 路徑: src/pages/UploadPage.js
+// 用途: 上傳小說頁 — TXT 解析 + 基本資料 + 封面 + 連載狀態
+// ============================================
+
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Info } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import TxtUploadSection from "../components/upload/TxtUploadSection";
 import CoverUploadSection from "../components/upload/CoverUploadSection";
 import BasicInfoForm from "../components/upload/BasicInfoForm";
@@ -20,35 +28,28 @@ export default function UploadPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
-  // 表單狀態
   const [title, setTitle] = useState("");
   const [author, setAuthor] = useState("");
   const [translator, setTranslator] = useState("");
   const [summary, setSummary] = useState("");
   const [tags, setTags] = useState("");
-  const [status, setStatus] = useState("serializing"); // "serializing" | "completed"
+  const [status, setStatus] = useState("serializing");
 
-  // 檔案狀態
   const [chapters, setChapters] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
 
-  // 提交狀態
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // 儲存空間資訊
   const [storageInfo] = useState(getStorageUsage());
 
-  // ========== 提交表單 ==========
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // 驗證
     if (chapters.length === 0) {
       setError("請上傳 TXT 檔案並確保成功解析");
       return;
     }
-
     if (!title.trim() || !author.trim() || !summary.trim() || !tags.trim()) {
       setError("請填寫所有必填欄位");
       return;
@@ -58,7 +59,6 @@ export default function UploadPage() {
     setError("");
 
     try {
-      // 準備標籤
       const tagsArray = tags
         .split(",")
         .map((t) => t.trim())
@@ -70,13 +70,11 @@ export default function UploadPage() {
         return;
       }
 
-      // 封面上傳到 Storage（有自訂封面才上傳）
       let coverUrl = DEFAULT_COVER;
       if (coverImage && coverImage.startsWith("data:")) {
         coverUrl = await uploadCoverImage(user.uid, coverImage);
       }
 
-      // 準備資料
       const novelData = {
         title: title.trim(),
         author: author.trim(),
@@ -90,23 +88,19 @@ export default function UploadPage() {
         uploaderName: user?.displayName || user?.email?.split("@")[0] || "",
       };
 
-      // 儲存到 localStorage
       const savedNovel = saveUploadedNovel(novelData);
 
-      // 同步到 Firestore 並取得 Firestore ID
       let targetId = savedNovel.id;
       if (user) {
         const firestoreId = await syncUploadToFirestore(savedNovel.id, user.uid);
         if (firestoreId) {
           targetId = firestoreId;
-          // 上傳章節內容到 Firestore 子集合
           await uploadChapters(firestoreId, chapters);
         }
         await refreshNovels();
       }
 
-      // 提示並跳轉
-      alert("上傳成功！");
+      alert("上傳成功!");
       navigate(`/novel/${targetId}`);
     } catch (err) {
       console.error("上傳失敗:", err);
@@ -116,60 +110,68 @@ export default function UploadPage() {
     }
   };
 
-  // 未登入時顯示提示
+  // 未登入提示
   if (!authLoading && !user) {
     return (
-      <div className="min-h-screen bg-light">
+      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
         <Navbar showBackButton={true} />
-        <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-          <h1 className="text-2xl font-bold text-dark mb-4">需要登入才能上傳</h1>
-          <p className="text-gray-600 mb-6">
-            登入後才能上傳小說，並支援跨裝置同步。
+        <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-4 text-neutral-900 dark:text-neutral-100">
+            需要登入才能上傳
+          </h1>
+          <p className="mb-6 text-neutral-600 dark:text-neutral-400">
+            登入後才能上傳小說,並支援跨裝置同步
           </p>
           <Link
             to="/auth"
-            className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+            className="inline-block px-6 py-3 rounded-lg font-semibold transition-colors
+                       bg-primary text-white hover:bg-primary-dark"
           >
             前往登入
           </Link>
-        </div>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={true} />
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* 標題 */}
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-4xl">
+        {/* ========== 標題 ========== */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-dark mb-2">上傳小說</h1>
-          <p className="text-gray-600">
-            上傳後會自動同步至雲端，支援跨裝置閱覽
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-2
+                         text-neutral-900 dark:text-neutral-100">
+            上傳小說
+          </h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            上傳後會自動同步至雲端,支援跨裝置閱覽
           </p>
-          <div className="mt-2 text-sm text-gray-500">
-            本地暫存已使用: {storageInfo.used}MB / {storageInfo.limit}MB (
-            {storageInfo.percentage}%)
+          <div className="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+            本地暫存已使用: {storageInfo.used}MB / {storageInfo.limit}MB ({storageInfo.percentage}%)
           </div>
         </div>
 
-        {/* 錯誤提示 */}
+        {/* ========== 錯誤提示 ========== */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="mb-6 p-4 rounded-lg
+                          bg-danger-light text-danger
+                          dark:bg-danger/15">
             {error}
           </div>
         )}
 
-        {/* 表單 */}
+        {/* ========== 表單 ========== */}
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* TXT 上傳區塊 */}
+          {/* TXT 上傳區 */}
           <TxtUploadSection
             onChaptersChange={setChapters}
             onError={setError}
           />
 
-          {/* 基本資訊表單 */}
+          {/* 基本資訊 */}
           <BasicInfoForm
             title={title}
             author={author}
@@ -183,74 +185,91 @@ export default function UploadPage() {
             onTagsChange={setTags}
           />
 
-          {/* 連載狀態 */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-dark mb-4">連載狀態</h2>
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="status"
-                  value="serializing"
-                  checked={status === "serializing"}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="accent-primary"
-                />
-                <span className="text-dark">連載中</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="status"
-                  value="completed"
-                  checked={status === "completed"}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="accent-primary"
-                />
-                <span className="text-dark">已完結</span>
-              </label>
+          {/* 連載狀態 — segmented control */}
+          <div className="rounded-2xl border p-5 sm:p-6
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
+            <h2 className="text-lg font-semibold mb-4 text-neutral-900 dark:text-neutral-100">
+              連載狀態
+            </h2>
+            <div className="inline-flex gap-1 p-1 rounded-lg
+                            bg-neutral-100 dark:bg-neutral-800">
+              <button
+                type="button"
+                onClick={() => setStatus("serializing")}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                  status === "serializing"
+                    ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                }`}
+              >
+                連載中
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus("completed")}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                  status === "completed"
+                    ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                }`}
+              >
+                已完結
+              </button>
             </div>
           </div>
 
-          {/* 封面上傳區塊 */}
+          {/* 封面上傳 */}
           <CoverUploadSection
             onCoverChange={setCoverImage}
             onError={setError}
+            title={title}
+            author={author}
           />
 
           {/* 提交按鈕 */}
-          <div className="flex gap-4">
+          <div className="flex flex-wrap gap-3 sm:gap-4">
             <button
               type="submit"
               disabled={isSubmitting || chapters.length === 0}
-              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 
-                       transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed
-                       font-semibold"
+              className="flex-1 min-w-[160px] px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-primary text-white hover:bg-primary-dark
+                         disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed
+                         dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500"
             >
               {isSubmitting ? "上傳中..." : "上傳小說"}
             </button>
-
             <button
               type="button"
               onClick={() => navigate("/")}
-              className="px-6 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 
-                       transition-colors font-semibold"
+              className="px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                         dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
             >
               取消
             </button>
           </div>
         </form>
 
-        {/* 說明文字 */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-semibold text-blue-800 mb-2">使用說明</h3>
-          <ul className="text-sm text-blue-700 space-y-1">
-            <li>• 上傳後資料會存在本地並自動同步至 Firebase 雲端</li>
-            <li>• 登入同一帳號可在不同裝置看到你的作品</li>
-            <li>• TXT 檔案請使用「第X章 章節名稱」格式分章</li>
-          </ul>
+        {/* ========== 使用說明 ========== */}
+        <div className="mt-8 p-4 rounded-xl border flex items-start gap-3
+                        bg-info-light/40 border-info/20
+                        dark:bg-info/10 dark:border-info/30">
+          <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-info" />
+          <div className="text-sm text-neutral-700 dark:text-neutral-300">
+            <p className="font-semibold mb-1.5 text-neutral-900 dark:text-neutral-100">
+              使用說明
+            </p>
+            <ul className="space-y-1 list-disc list-inside marker:text-info">
+              <li>上傳後資料會存在本地並自動同步至 Firebase 雲端</li>
+              <li>登入同一帳號可在不同裝置看到你的作品</li>
+              <li>TXT 檔案請使用「第X章 章節名稱」格式分章</li>
+            </ul>
+          </div>
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

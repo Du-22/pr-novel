@@ -2,16 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   字型系統
+   - 預設 body: Noto Sans TC(黑體)用於 UI
+   - 內文(小說摘要、閱讀頁、描述)應透過 font-body utility class
+     或 inline style 套用 Noto Serif TC(宋體)
+   ============================================ */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  /* TC 優先, SC 為 fallback (利用 Google Fonts unicode-range,
+     SC 字符出現時才下載對應 subset, 平時不會多消耗流量) */
+  font-family: "Noto Sans TC", "Noto Sans SC", "Plus Jakarta Sans", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
+}
+
+/* ============================================
+   Dark mode
+   - 透過 <html class="dark"> 切換
+   - color-scheme 確保系統 UI(scrollbar 等)跟著反轉
+   ============================================ */
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+/* ============================================
+   DefaultCover 漸層
+   - 用 CSS variable 讓同一個 component 自動切換 light/dark 版本漸層
+   - 變數值由 React 元件以 inline style 設定 (--cover-bg-light, --cover-bg-dark)
+   ============================================ */
+.default-cover {
+  background-image: var(--cover-bg-light);
+}
+html.dark .default-cover {
+  background-image: var(--cover-bg-dark);
+}
+
+/* ============================================
+   HeroSection 漸層
+   - 同 DefaultCover 邏輯,brand 紫色主視覺,dark mode 降一階
+   ============================================ */
+.hero-section {
+  background-image: var(--hero-bg-light);
+}
+html.dark .hero-section {
+  background-image: var(--hero-bg-dark);
 }
