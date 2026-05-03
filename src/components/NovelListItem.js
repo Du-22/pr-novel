@@ -1,44 +1,70 @@
 // ============================================
 // 檔案名稱: NovelListItem.js
 // 路徑: src/components/NovelListItem.js
-// 用途: 列表模式的小說卡片（封面＋簡介＋類別＋統計）
+// 用途: 小說卡片(list 模式)— 顯示縮圖封面、標題、狀態、作者、簡介、標籤、統計
+//       無封面時自動套用 DefaultCover 程式生成漸層封面
 // ============================================
+
 import React from "react";
 import { Link } from "react-router-dom";
+import DefaultCover from "./DefaultCover";
+
+const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
 
 export default function NovelListItem({ novel }) {
+  const isDefaultCover = !novel.coverImage || novel.coverImage === DEFAULT_COVER_PATH;
+
   return (
     <Link
       to={`/novel/${novel.id}`}
-      className="flex gap-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 items-start"
+      className="flex gap-3 sm:gap-4 items-start p-3 sm:p-4 rounded-xl border transition-all
+                 bg-white border-neutral-200 hover:shadow-md hover:border-neutral-300
+                 dark:bg-neutral-900 dark:border-neutral-800 dark:hover:border-neutral-700"
     >
       {/* 封面縮圖 */}
-      <div className="flex-shrink-0 w-24 h-32 overflow-hidden rounded-md bg-gray-200">
-        <img
-          src={novel.coverImage}
-          alt={novel.title}
-          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-        />
+      <div className="flex-shrink-0 w-20 h-28 sm:w-24 sm:h-32 overflow-hidden rounded-md
+                      bg-neutral-100 dark:bg-neutral-800">
+        {isDefaultCover ? (
+          <DefaultCover
+            title={novel.title}
+            author={novel.author}
+            className="w-full h-full"
+          />
+        ) : (
+          <img
+            src={novel.coverImage}
+            alt={novel.title}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        )}
       </div>
 
       {/* 資訊區 */}
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2 mb-1">
-          <h3 className="text-lg font-bold text-dark line-clamp-1 break-words flex-1">
+          <h3 className="flex-1 text-base sm:text-lg font-bold line-clamp-1 break-words
+                         text-neutral-900 dark:text-neutral-100">
             {novel.title}
           </h3>
           {novel.status && (
-            <span className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium ${
-              novel.status === "completed"
-                ? "bg-blue-50 text-blue-600"
-                : "bg-green-50 text-green-600"
-            }`}>
+            <span
+              className={`flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded font-medium ${
+                novel.status === "completed"
+                  ? "bg-info-light text-info"
+                  : "bg-success-light text-success"
+              }`}
+            >
               {novel.status === "completed" ? "完結" : "連載"}
             </span>
           )}
         </div>
-        <p className="text-sm text-gray-500 mb-2">{novel.author}</p>
-        <p className="text-sm text-gray-600 line-clamp-2 leading-relaxed break-words mb-2">
+
+        <p className="mb-2 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
+          {novel.author}
+        </p>
+
+        <p className="mb-2 text-xs sm:text-sm line-clamp-2 leading-relaxed break-words
+                      text-neutral-600 dark:text-neutral-400">
           {novel.summary}
         </p>
 
@@ -47,7 +73,9 @@ export default function NovelListItem({ novel }) {
           {(novel.tags || []).slice(0, 4).map((tag, index) => (
             <span
               key={index}
-              className="px-2 py-0.5 text-xs rounded-full bg-light text-primary border border-primary"
+              className="px-2 py-0.5 text-[11px] rounded-full
+                         bg-neutral-100 text-neutral-700
+                         dark:bg-neutral-800 dark:text-neutral-300"
             >
               {tag}
             </span>
@@ -55,7 +83,7 @@ export default function NovelListItem({ novel }) {
         </div>
 
         {/* 統計數字 */}
-        <div className="flex gap-4 text-sm text-gray-500">
+        <div className="flex gap-3 sm:gap-4 text-xs sm:text-sm text-neutral-500 dark:text-neutral-400">
           <span>{novel.stats?.views || 0} 閱讀</span>
           <span>{novel.stats?.favorites || 0} 收藏</span>
         </div>
