@@ -19,8 +19,11 @@ import {
   Heart,
   Flag,
   Check,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { useDarkMode } from "../hooks/useDarkMode";
 import { logout } from "../firebase/auth";
 import { useUnreadNotifications } from "../hooks/useUnreadNotifications";
 import {
@@ -33,6 +36,7 @@ import Logo from "./Logo";
 const Navbar = ({ showBackButton = false }) => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
+  const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const unreadCount = useUnreadNotifications();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -236,6 +240,17 @@ const Navbar = ({ showBackButton = false }) => {
                 <Search className="h-5 w-5" />
               </button>
             )}
+
+            {/* Dark mode 切換 */}
+            <button
+              onClick={toggleDarkMode}
+              className="p-2 text-neutral-700 hover:text-primary hover:bg-neutral-100 rounded-lg transition-colors
+                         dark:text-neutral-300 dark:hover:text-primary-light dark:hover:bg-neutral-800"
+              aria-label={isDark ? "切換到日間模式" : "切換到夜間模式"}
+              title={isDark ? "切換到日間模式" : "切換到夜間模式"}
+            >
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </button>
 
             {/* 通知鈴鐺 (已登入才顯示) */}
             {user && (

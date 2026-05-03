@@ -16,6 +16,19 @@
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+TC:wght@400;500;700&family=Noto+Serif+SC:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
+
+    <!-- Dark mode 抗 FOUC: React render 之前先設定好 <html.dark> class,
+         避免初始閃白。讀取順序: localStorage > prefers-color-scheme -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem("pr-novel-theme");
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var isDark = saved === "dark" || (saved !== "light" && prefersDark);
+          if (isDark) document.documentElement.classList.add("dark");
+        } catch (e) {}
+      })();
+    </script>
     <meta
       name="description"
       content="PR小說網 — 探索精彩故事，分享閱讀樂趣"
