@@ -1,10 +1,28 @@
 // ============================================
 // 檔案名稱: ChangePasswordDialog.js
 // 路徑: src/components/ChangePasswordDialog.js
-// 用途: 更改密碼對話框（舊密碼驗證 + 新密碼 + 確認新密碼）
+// 用途: 更改密碼對話框(舊密碼驗證 + 新密碼 + 確認新密碼)
 // ============================================
+
 import React, { useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { changePassword } from "../firebase/auth";
+
+// 共用 input / label / 主按鈕 className
+const INPUT_CLASS =
+  "w-full px-4 py-2.5 rounded-lg border " +
+  "bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300 " +
+  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 " +
+  "dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700";
+
+const LABEL_CLASS =
+  "block text-sm font-medium mb-2 text-neutral-900 dark:text-neutral-100";
+
+const PRIMARY_BTN =
+  "py-2.5 rounded-lg font-semibold transition-colors " +
+  "bg-primary text-white hover:bg-primary-dark " +
+  "disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed " +
+  "dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500";
 
 export default function ChangePasswordDialog({ isOpen, onClose }) {
   const [currentPassword, setCurrentPassword] = useState("");
@@ -33,7 +51,6 @@ export default function ChangePasswordDialog({ isOpen, onClose }) {
     e.preventDefault();
     setError("");
 
-    // 前端驗證
     if (!currentPassword || !newPassword || !confirmPassword) {
       setError("請填寫所有欄位");
       return;
@@ -63,132 +80,96 @@ export default function ChangePasswordDialog({ isOpen, onClose }) {
   };
 
   return (
-    <>
-      {/* 遮罩層 */}
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={handleClose}
+    >
       <div
-        className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
-        onClick={handleClose}
-      />
+        className="w-full max-w-md p-6 rounded-2xl shadow-2xl
+                   bg-white dark:bg-neutral-900"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-xl font-bold mb-4 text-neutral-900 dark:text-neutral-100">
+          更改密碼
+        </h3>
 
-      {/* 對話框 */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div
-          className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-fadeIn"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-xl font-bold text-dark mb-4">更改密碼</h3>
-
-          {success ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-                密碼已成功更改！
+        {success ? (
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg flex items-start gap-3
+                            bg-success-light text-success
+                            dark:bg-success/15">
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span className="text-sm">密碼已成功更改</span>
+            </div>
+            <button onClick={handleClose} className={`w-full ${PRIMARY_BTN}`}>
+              關閉
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 rounded-lg text-sm
+                              bg-danger-light text-danger
+                              dark:bg-danger/15">
+                {error}
               </div>
+            )}
+
+            <div>
+              <label className={LABEL_CLASS}>舊密碼</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="請輸入目前的密碼"
+                required
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>新密碼</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="至少 6 位"
+                required
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>確認新密碼</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="再次輸入新密碼"
+                required
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
               <button
+                type="button"
                 onClick={handleClose}
-                className="w-full py-2.5 bg-primary text-white rounded-lg font-semibold
-                         hover:bg-primary/90 transition-colors"
+                disabled={loading}
+                className="flex-1 py-2.5 rounded-lg font-semibold transition-colors
+                           bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                           dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700
+                           disabled:opacity-60"
               >
-                關閉
+                取消
+              </button>
+              <button type="submit" disabled={loading} className={`flex-1 ${PRIMARY_BTN}`}>
+                {loading ? "更改中..." : "確認更改"}
               </button>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* 錯誤訊息 */}
-              {error && (
-                <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
-                  {error}
-                </div>
-              )}
-
-              {/* 舊密碼 */}
-              <div>
-                <label className="block text-sm font-medium text-dark mb-2">
-                  舊密碼
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="請輸入目前的密碼"
-                  required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg
-                           focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              {/* 新密碼 */}
-              <div>
-                <label className="block text-sm font-medium text-dark mb-2">
-                  新密碼
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="至少 6 位"
-                  required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg
-                           focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              {/* 確認新密碼 */}
-              <div>
-                <label className="block text-sm font-medium text-dark mb-2">
-                  確認新密碼
-                </label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="再次輸入新密碼"
-                  required
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg
-                           focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              {/* 按鈕區 */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  disabled={loading}
-                  className="flex-1 py-2.5 bg-gray-200 text-dark rounded-lg font-semibold
-                           hover:bg-gray-300 transition-colors disabled:opacity-60"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2.5 bg-primary text-white rounded-lg font-semibold
-                           hover:bg-primary/90 transition-colors
-                           disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  {loading ? "更改中..." : "確認更改"}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
+          </form>
+        )}
       </div>
-
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.2s ease-out;
-        }
-      `}</style>
-    </>
+    </div>
   );
 }
