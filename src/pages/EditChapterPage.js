@@ -1,16 +1,24 @@
 // ============================================
 // 檔案名稱: EditChapterPage.js
 // 路徑: src/pages/EditChapterPage.js
-// 用途: 編輯單一章節（標題與內文）
+// 用途: 編輯單一章節(標題與內文),含未儲存變更離開警告
 // ============================================
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import { getChapter, updateChapter } from "../firebase/chapters";
 import { getNovelById } from "../firebase/novels";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../hooks/useAuth";
+
+const INPUT_CLASS =
+  "w-full px-3 py-2 rounded-lg border " +
+  "bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300 " +
+  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 " +
+  "dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700";
 
 export default function EditChapterPage() {
   const { id, chapterNumber } = useParams();
@@ -30,7 +38,6 @@ export default function EditChapterPage() {
   const [error, setError] = useState("");
   const [hasChanges, setHasChanges] = useState(false);
 
-  // ========== 載入章節資料 ==========
   useEffect(() => {
     const load = async () => {
       const novel = await getNovelById(id);
@@ -63,12 +70,10 @@ export default function EditChapterPage() {
     if (user !== undefined) load();
   }, [id, chNum, user, navigate]);
 
-  // ========== 監聽變更 ==========
   useEffect(() => {
     setHasChanges(title !== originalTitle || content !== originalContent);
   }, [title, content, originalTitle, originalContent]);
 
-  // ========== 離開前提醒 ==========
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasChanges) {
@@ -80,7 +85,6 @@ export default function EditChapterPage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasChanges]);
 
-  // ========== 儲存 ==========
   const handleSave = async () => {
     if (!title.trim()) {
       setError("章節標題不能為空");
@@ -97,14 +101,12 @@ export default function EditChapterPage() {
     try {
       const wordCount = content.trim().length;
 
-      // 更新子集合章節內容
       await updateChapter(id, chNum, {
         title: title.trim(),
         content: content.trim(),
         wordCount,
       });
 
-      // 更新小說文件的 chapters metadata
       const novelRef = doc(db, "novels", id);
       const novelSnap = await getDoc(novelRef);
       if (novelSnap.exists()) {
@@ -120,26 +122,26 @@ export default function EditChapterPage() {
       setOriginalTitle(title.trim());
       setOriginalContent(content.trim());
       setHasChanges(false);
-      alert("儲存成功！");
+      alert("儲存成功!");
       navigate(`/my-uploads/edit/${id}`);
     } catch (err) {
       console.error("儲存失敗:", err);
-      setError("儲存失敗，請稍後再試");
+      setError("儲存失敗,請稍後再試");
     } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    if (hasChanges && !window.confirm("你有未儲存的變更，確定要離開嗎？")) return;
+    if (hasChanges && !window.confirm("你有未儲存的變更,確定要離開嗎?")) return;
     navigate(`/my-uploads/edit/${id}`);
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-light">
+      <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950">
         <Navbar showBackButton={true} />
-        <div className="max-w-4xl mx-auto px-4 py-8 text-center text-gray-500">
+        <div className="max-w-4xl mx-auto px-4 py-8 text-center text-neutral-500 dark:text-neutral-400">
           載入中...
         </div>
       </div>
@@ -147,61 +149,78 @@ export default function EditChapterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-light">
+    <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar showBackButton={true} />
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <main className="flex-1 container mx-auto px-4 py-8 md:py-12 max-w-4xl">
         {/* 標題區 */}
         <div className="mb-6">
-          <p className="text-sm text-gray-500 mb-1">{novelTitle}</p>
-          <h1 className="text-2xl font-bold text-dark">編輯章節</h1>
+          <p className="mb-1 text-sm text-neutral-500 dark:text-neutral-400">
+            {novelTitle}
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight
+                         text-neutral-900 dark:text-neutral-100">
+            編輯章節
+          </h1>
         </div>
 
-        {/* 提示：正在編輯哪一章 */}
-        <div className="mb-6 p-4 bg-primary/10 border border-primary/30 rounded-lg text-sm text-primary font-medium">
-          正在編輯：第 {chNum} 章
+        {/* 提示:正在編輯哪一章 */}
+        <div className="mb-6 p-4 rounded-lg text-sm font-medium border
+                        bg-primary/10 text-primary border-primary/20
+                        dark:bg-primary/15 dark:text-primary-light dark:border-primary/30">
+          正在編輯:第 {chNum} 章
         </div>
 
         {error && (
-          <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+          <div className="mb-4 p-4 rounded-lg text-sm
+                          bg-danger-light text-danger
+                          dark:bg-danger/15">
             {error}
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-6 space-y-5">
+        <div className="rounded-2xl border p-5 sm:p-6 space-y-5
+                        bg-white border-neutral-200
+                        dark:bg-neutral-900 dark:border-neutral-800">
           {/* 章節標題 */}
           <div>
-            <label className="block text-sm font-medium text-dark mb-1">章節標題</label>
+            <label className="block text-sm font-medium mb-1 text-neutral-900 dark:text-neutral-100">
+              章節標題
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+              className={INPUT_CLASS}
             />
           </div>
 
           {/* 章節內容 */}
           <div>
-            <label className="block text-sm font-medium text-dark mb-1">
+            <label className="block text-sm font-medium mb-1 text-neutral-900 dark:text-neutral-100">
               章節內容
               {content && (
-                <span className="ml-2 text-gray-400 font-normal">{content.length} 字</span>
+                <span className="ml-2 font-normal text-neutral-400 dark:text-neutral-500">
+                  {content.length} 字
+                </span>
               )}
             </label>
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={20}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-y font-mono text-sm"
+              className={`${INPUT_CLASS} resize-y font-mono`}
             />
           </div>
 
           {/* 操作按鈕 */}
-          <div className="flex gap-4 pt-2">
+          <div className="flex gap-3 sm:gap-4 pt-2">
             <button
               type="button"
               onClick={handleCancel}
-              className="flex-1 px-6 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition-colors font-semibold"
+              className="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                         dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
             >
               取消
             </button>
@@ -209,13 +228,17 @@ export default function EditChapterPage() {
               type="button"
               onClick={handleSave}
               disabled={saving || !hasChanges}
-              className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+              className="flex-1 px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-primary text-white hover:bg-primary-dark
+                         disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {saving ? "儲存中..." : "儲存"}
             </button>
           </div>
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }
