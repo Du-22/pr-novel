@@ -69,9 +69,10 @@ module.exports = {
       },
 
       // === 字型系統(等 index.css 載入 Google Fonts 後生效) ===
+      // TC 優先, SC 為 fallback (利用 unicode-range, SC 字符才會自動下載)
       fontFamily: {
-        heading: ['"Noto Sans TC"', '"Plus Jakarta Sans"', "sans-serif"],
-        body: ['"Noto Serif TC"', "serif"],
+        heading: ['"Noto Sans TC"', '"Noto Sans SC"', '"Plus Jakarta Sans"', "sans-serif"],
+        body: ['"Noto Serif TC"', '"Noto Serif SC"', "serif"],
       },
     },
   },

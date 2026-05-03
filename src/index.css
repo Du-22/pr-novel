@@ -10,7 +10,9 @@
    ============================================ */
 body {
   margin: 0;
-  font-family: "Noto Sans TC", "Plus Jakarta Sans", -apple-system,
+  /* TC 優先, SC 為 fallback (利用 Google Fonts unicode-range,
+     SC 字符出現時才下載對應 subset, 平時不會多消耗流量) */
+  font-family: "Noto Sans TC", "Noto Sans SC", "Plus Jakarta Sans", -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
