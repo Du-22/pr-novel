@@ -1,10 +1,12 @@
 // ============================================
 // 檔案名稱: CommentsSection.js
 // 路徑: src/components/CommentsSection.js
-// 用途: 讀者評論區（樓層編號、巢狀回覆、@mention）
+// 用途: 讀者評論區(樓層編號、巢狀回覆、@mention、按讚、刪除、檢舉)
 // ============================================
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Heart } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import {
   collection,
@@ -40,8 +42,8 @@ function Avatar({
   name,
   uid,
   size = "w-9 h-9",
-  bg = "bg-secondary/40",
-  textColor = "text-primary",
+  bg = "bg-primary/10 dark:bg-primary/20",
+  textColor = "text-primary dark:text-primary-light",
 }) {
   const inner = (
     <div
@@ -64,14 +66,24 @@ function Avatar({
 
 function FloorBadge({ floor }) {
   return (
-    <span className="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded mr-1">
+    <span className="text-xs font-mono px-1.5 py-0.5 rounded mr-1
+                     text-primary bg-primary/10
+                     dark:text-primary-light dark:bg-primary/20">
       B{floor}
     </span>
   );
 }
 
-const TOP_LEVEL_LIMIT = 10; // 預設顯示第一層留言數
-const REPLY_LIMIT = 2; // 預設顯示回覆數
+// 共用 className helpers
+const ACTION_BTN =
+  "text-xs transition-colors text-neutral-400 hover:text-primary dark:text-neutral-500 dark:hover:text-primary-light";
+const ACTION_BTN_DANGER =
+  "text-xs transition-colors text-neutral-400 hover:text-danger dark:text-neutral-500";
+const ACTION_BTN_WARNING =
+  "text-xs transition-colors text-neutral-400 hover:text-warning dark:text-neutral-500";
+
+const TOP_LEVEL_LIMIT = 10;
+const REPLY_LIMIT = 2;
 
 export default function CommentsSection({
   novelId,
@@ -84,11 +96,10 @@ export default function CommentsSection({
   const [topLevelComments, setTopLevelComments] = useState([]);
   const [replyMap, setReplyMap] = useState({});
   const [loading, setLoading] = useState(true);
-  const [userNameMap, setUserNameMap] = useState({}); // { uid: displayName }
+  const [userNameMap, setUserNameMap] = useState({});
 
-  // 折疊狀態
   const [showAllTopLevel, setShowAllTopLevel] = useState(false);
-  const [expandedReplies, setExpandedReplies] = useState({}); // { commentId: true }
+  const [expandedReplies, setExpandedReplies] = useState({});
   const [showDeletedIds, setShowDeletedIds] = useState(new Set());
 
   const toggleShowDeleted = (id) => {
@@ -99,28 +110,23 @@ export default function CommentsSection({
     });
   };
 
-  // 第一層留言輸入
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // 回覆狀態：記錄要回覆的第一層留言，以及 @mention 樓層
-  const [replyingTo, setReplyingTo] = useState(null); // 第一層留言 object
+  const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState("");
   const [replySubmitting, setReplySubmitting] = useState(false);
   const replyTextareaRef = useRef(null);
 
-  // 排序：'time' | 'likes'
   const [sortBy, setSortBy] = useState("likes");
 
-  // 檢舉狀態
   const [reportingComment, setReportingComment] = useState(null);
   const [reportReason, setReportReason] = useState("spam");
   const [reportDetail, setReportDetail] = useState("");
   const [reportSubmitting, setReportSubmitting] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
-  // chapterNumber → title 對照表
   const chapterTitleMap = useMemo(() => {
     const map = {};
     chapters.forEach((c) => {
@@ -140,7 +146,6 @@ export default function CommentsSection({
       const snapshot = await getDocs(q);
       const all = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // 閱讀頁：只顯示該章節留言；小說資訊頁：顯示全部
       const topLevel = all.filter(
         (c) =>
           !c.parentId &&
@@ -160,7 +165,6 @@ export default function CommentsSection({
       setTopLevelComments(topLevel);
       setReplyMap(map);
 
-      // 批次取得最新暱稱（用於暱稱更改後同步顯示）
       const uids = [...new Set(all.filter((c) => c.authorUid).map((c) => c.authorUid))];
       if (uids.length > 0) {
         const snaps = await Promise.all(uids.map((uid) => getDoc(doc(db, "users", uid))));
@@ -186,12 +190,10 @@ export default function CommentsSection({
     if (loading || !location.hash?.startsWith("#comment-")) return;
     const targetId = location.hash.replace("#comment-", "");
 
-    // 如果目標是頂層留言且被折疊，先展開
     const isTopLevel = topLevelComments.some((c) => c.id === targetId);
     if (isTopLevel) {
       setShowAllTopLevel(true);
     } else {
-      // 找出是哪個 thread 的回覆並展開
       for (const [parentId, replies] of Object.entries(replyMap)) {
         if (replies.some((r) => r.id === targetId)) {
           setExpandedReplies((prev) => ({ ...prev, [parentId]: true }));
@@ -210,7 +212,7 @@ export default function CommentsSection({
         }, 2500);
       }
     }, 300);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, location.hash]);
 
   // ========== 送出第一層留言 ==========
@@ -222,7 +224,6 @@ export default function CommentsSection({
     setError("");
 
     try {
-      // Transaction：取得並遞增 topLevelCount
       const floorNumber = await runTransaction(db, async (transaction) => {
         const counterSnap = await transaction.get(counterDocRef);
         const current = counterSnap.exists()
@@ -242,7 +243,7 @@ export default function CommentsSection({
         content: content.trim(),
         authorUid: user.uid,
         authorName: user.displayName || user.email.split("@")[0],
-        floorNumber, // number: 1, 2, 3...
+        floorNumber,
         parentId: null,
         replyCount: 0,
         chapterNumber: chapterNumber ?? null,
@@ -253,7 +254,7 @@ export default function CommentsSection({
       await loadComments();
     } catch (err) {
       console.error("送出評論失敗:", err);
-      setError("送出失敗，請稍後再試");
+      setError("送出失敗,請稍後再試");
     } finally {
       setSubmitting(false);
     }
@@ -261,16 +262,15 @@ export default function CommentsSection({
 
   // ========== 點擊回覆按鈕 ==========
   const handleReplyClick = (comment) => {
-    // 不論回覆的是第一層還是回覆層，回覆都掛在第一層底下
     let firstLevel;
     let mentionFloor;
 
     if (!comment.parentId) {
       firstLevel = comment;
-      mentionFloor = comment.floorNumber; // number → "B3"
+      mentionFloor = comment.floorNumber;
     } else {
       firstLevel = topLevelComments.find((c) => c.id === comment.parentId);
-      mentionFloor = comment.floorNumber; // string → "B3-2"
+      mentionFloor = comment.floorNumber;
     }
 
     if (!firstLevel) return;
@@ -294,7 +294,6 @@ export default function CommentsSection({
     try {
       const parentDocRef = doc(db, itemsCol, replyingTo.id);
 
-      // Transaction：取得並遞增父留言的 replyCount
       const replyIndex = await runTransaction(db, async (transaction) => {
         const parentSnap = await transaction.get(parentDocRef);
         const current = parentSnap.exists()
@@ -305,22 +304,21 @@ export default function CommentsSection({
         return next;
       });
 
-      const parentFloor = replyingTo.floorNumber; // number
-      const replyFloor = `${parentFloor}-${replyIndex}`; // e.g. "3-6"
+      const parentFloor = replyingTo.floorNumber;
+      const replyFloor = `${parentFloor}-${replyIndex}`;
 
       const replyId = `reply-${Date.now()}`;
       await setDoc(doc(db, itemsCol, replyId), {
         content: replyContent.trim(),
         authorUid: user.uid,
         authorName: user.displayName || user.email.split("@")[0],
-        floorNumber: replyFloor, // string: "3-6"
+        floorNumber: replyFloor,
         parentId: replyingTo.id,
-        parentFloor, // number: 3
+        parentFloor,
         chapterNumber: chapterNumber ?? null,
         createdAt: new Date(),
       });
 
-      // 通知被回覆的留言作者（不通知自己）
       if (replyingTo.authorUid && replyingTo.authorUid !== user.uid) {
         createNotification(replyingTo.authorUid, {
           type: "reply",
@@ -342,9 +340,9 @@ export default function CommentsSection({
     }
   };
 
-  // ========== 刪除留言（軟刪除） ==========
+  // ========== 刪除留言(軟刪除) ==========
   const handleDelete = async (commentId) => {
-    if (!window.confirm("確定要刪除這則留言嗎？")) return;
+    if (!window.confirm("確定要刪除這則留言嗎?")) return;
     try {
       await updateDoc(doc(db, itemsCol, commentId), {
         deleted: true,
@@ -353,7 +351,7 @@ export default function CommentsSection({
       await loadComments();
     } catch (err) {
       console.error("刪除留言失敗:", err);
-      alert("刪除失敗，請稍後再試");
+      alert("刪除失敗,請稍後再試");
     }
   };
 
@@ -365,7 +363,6 @@ export default function CommentsSection({
     const likedBy = comment.likedBy || [];
     const alreadyLiked = likedBy.includes(user.uid);
 
-    // 樂觀更新
     const updateLocal = (list) =>
       list.map((c) => {
         if (c.id !== comment.id) return c;
@@ -387,14 +384,12 @@ export default function CommentsSection({
       setTopLevelComments((prev) => updateLocal(prev));
     }
 
-    // 背景同步 Firestore
     try {
       const ref = doc(db, itemsCol, comment.id);
       await updateDoc(ref, {
         likedBy: alreadyLiked ? arrayRemove(user.uid) : arrayUnion(user.uid),
       });
 
-      // 按讚時通知留言作者（不通知自己、不在取消讚時通知）
       if (!alreadyLiked && comment.authorUid && comment.authorUid !== user.uid) {
         createNotification(comment.authorUid, {
           type: "like",
@@ -407,7 +402,6 @@ export default function CommentsSection({
       }
     } catch (err) {
       console.error("按讚失敗:", err);
-      // 失敗時回滾（重新載入）
       await loadComments();
     }
   };
@@ -451,7 +445,7 @@ export default function CommentsSection({
 
   // ========== 排序 ==========
   const sortedTopLevel = useMemo(() => {
-    const toDate = (ts) => ts?.toDate ? ts.toDate() : new Date(ts);
+    const toDate = (ts) => (ts?.toDate ? ts.toDate() : new Date(ts));
     if (sortBy === "likes") {
       return [...topLevelComments].sort(
         (a, b) => (b.likedBy?.length || 0) - (a.likedBy?.length || 0),
@@ -460,7 +454,6 @@ export default function CommentsSection({
     if (sortBy === "oldest") {
       return [...topLevelComments].sort((a, b) => toDate(a.createdAt) - toDate(b.createdAt));
     }
-    // 最新在前（createdAt desc）
     return [...topLevelComments].sort((a, b) => toDate(b.createdAt) - toDate(a.createdAt));
   }, [topLevelComments, sortBy]);
 
@@ -468,50 +461,39 @@ export default function CommentsSection({
     topLevelComments.length +
     Object.values(replyMap).reduce((sum, arr) => sum + arr.length, 0);
 
-  // 取得最新暱稱（有 userNameMap 就用最新的，否則 fallback 到留言當時的名稱）
   const getDisplayName = (comment) => userNameMap[comment.authorUid] || comment.authorName;
 
+  // 排序按鈕共用樣式
+  const sortBtnClass = (key) =>
+    `px-3 py-1 rounded-full transition-colors ${
+      sortBy === key
+        ? "bg-primary text-white"
+        : "text-neutral-500 hover:text-primary dark:text-neutral-400 dark:hover:text-primary-light"
+    }`;
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-dark">
+    <div className="rounded-2xl border p-5 sm:p-6
+                    bg-white border-neutral-200
+                    dark:bg-neutral-900 dark:border-neutral-800">
+      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+        <h2 className="text-xl sm:text-2xl font-bold tracking-tight
+                       text-neutral-900 dark:text-neutral-100">
           讀者留言
           {totalCount > 0 && (
-            <span className="ml-2 text-lg font-normal text-gray-500">
+            <span className="ml-2 text-base sm:text-lg font-normal text-neutral-500 dark:text-neutral-400">
               ({totalCount})
             </span>
           )}
         </h2>
         {topLevelComments.length > 0 && (
           <div className="flex items-center gap-1 text-sm">
-            <button
-              onClick={() => setSortBy("likes")}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                sortBy === "likes"
-                  ? "bg-primary text-white"
-                  : "text-gray-500 hover:text-primary"
-              }`}
-            >
+            <button onClick={() => setSortBy("likes")} className={sortBtnClass("likes")}>
               熱門
             </button>
-            <button
-              onClick={() => setSortBy("oldest")}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                sortBy === "oldest"
-                  ? "bg-primary text-white"
-                  : "text-gray-500 hover:text-primary"
-              }`}
-            >
+            <button onClick={() => setSortBy("oldest")} className={sortBtnClass("oldest")}>
               按時間
             </button>
-            <button
-              onClick={() => setSortBy("time")}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                sortBy === "time"
-                  ? "bg-primary text-white"
-                  : "text-gray-500 hover:text-primary"
-              }`}
-            >
+            <button onClick={() => setSortBy("time")} className={sortBtnClass("time")}>
               最新
             </button>
           </div>
@@ -534,23 +516,26 @@ export default function CommentsSection({
                 placeholder="分享你的閱讀心得..."
                 maxLength={MAX_LENGTH}
                 rows={3}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none
-                         focus:outline-none focus:ring-2 focus:ring-primary/50 text-dark"
+                className="w-full px-4 py-3 rounded-lg resize-none border
+                           bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                           dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
               />
               <div className="flex items-center justify-between mt-2">
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-neutral-400 dark:text-neutral-500">
                   {content.length} / {MAX_LENGTH}
                 </span>
                 <div className="flex items-center gap-3">
                   {error && (
-                    <span className="text-sm text-red-500">{error}</span>
+                    <span className="text-sm text-danger">{error}</span>
                   )}
                   <button
                     type="submit"
                     disabled={submitting || !content.trim()}
-                    className="px-5 py-2 bg-primary text-white rounded-lg hover:bg-primary/90
-                             transition-colors font-medium text-sm
-                             disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="px-5 py-2 rounded-lg font-medium text-sm transition-colors
+                               bg-primary text-white hover:bg-primary-dark
+                               disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed
+                               dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500"
                   >
                     {submitting ? "送出中..." : "送出"}
                   </button>
@@ -560,11 +545,16 @@ export default function CommentsSection({
           </div>
         </form>
       ) : (
-        <div className="mb-8 p-4 bg-light rounded-lg text-center">
-          <p className="text-gray-600 mb-2">登入後才能留下留言</p>
+        <div className="mb-8 p-4 rounded-lg text-center
+                        bg-neutral-100 dark:bg-neutral-800">
+          <p className="mb-2 text-neutral-600 dark:text-neutral-400">
+            登入後才能留下留言
+          </p>
           <Link
             to="/auth"
-            className="text-primary font-medium hover:text-primary/80 transition-colors"
+            className="font-medium transition-colors
+                       text-primary hover:text-primary-dark
+                       dark:text-primary-light dark:hover:text-primary"
           >
             前往登入
           </Link>
@@ -573,10 +563,12 @@ export default function CommentsSection({
 
       {/* ========== 留言列表 ========== */}
       {loading ? (
-        <p className="text-gray-400 text-center py-6">載入中...</p>
+        <p className="text-center py-6 text-neutral-400 dark:text-neutral-500">
+          載入中...
+        </p>
       ) : topLevelComments.length === 0 ? (
-        <p className="text-gray-400 text-center py-6">
-          還沒有留言，來留下第一則吧
+        <p className="text-center py-6 text-neutral-400 dark:text-neutral-500">
+          還沒有留言,來留下第一則吧
         </p>
       ) : (
         <div className="space-y-6">
@@ -603,24 +595,28 @@ export default function CommentsSection({
                         {showDeletedIds.has(comment.id) ? (
                           <div className="opacity-70">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs bg-red-100 text-red-500 px-1.5 py-0.5 rounded">已刪除</span>
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-danger-light text-danger">
+                                已刪除
+                              </span>
                               <button
                                 onClick={() => toggleShowDeleted(comment.id)}
-                                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                className="text-xs transition-colors text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300"
                               >
                                 隱藏
                               </button>
                             </div>
-                            <p className="text-gray-500 text-sm leading-relaxed break-words line-through">
+                            <p className="text-sm leading-relaxed break-words line-through text-neutral-500 dark:text-neutral-500">
                               {comment.content}
                             </p>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                            <p className="text-sm italic text-neutral-400 dark:text-neutral-500">
+                              此留言已被刪除
+                            </p>
                             <button
                               onClick={() => toggleShowDeleted(comment.id)}
-                              className="text-xs text-gray-400 hover:text-primary transition-colors"
+                              className={ACTION_BTN}
                             >
                               顯示
                             </button>
@@ -629,18 +625,18 @@ export default function CommentsSection({
                       </div>
                     ) : (
                       <>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center justify-between mb-1 gap-2">
+                          <div className="flex items-center gap-2 flex-wrap min-w-0">
                             <FloorBadge floor={comment.floorNumber} />
-                            <span className="font-medium text-dark text-sm">
+                            <span className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
                               {getDisplayName(comment)}
                             </span>
                             {chapterNumber === null && (
                               <span
                                 className={`text-xs px-1.5 py-0.5 rounded ${
                                   comment.chapterNumber
-                                    ? "text-primary bg-primary/10"
-                                    : "text-gray-400 bg-gray-100"
+                                    ? "text-primary bg-primary/10 dark:text-primary-light dark:bg-primary/20"
+                                    : "text-neutral-500 bg-neutral-100 dark:text-neutral-400 dark:bg-neutral-800"
                                 }`}
                               >
                                 {comment.chapterNumber
@@ -648,56 +644,46 @@ export default function CommentsSection({
                                   : "於 目錄頁 留言"}
                               </span>
                             )}
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-neutral-400 dark:text-neutral-500">
                               {formatDate(comment.createdAt)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-shrink-0">
                             {/* 按讚 */}
                             <button
                               onClick={() => handleLike(comment)}
                               className={`flex items-center gap-1 text-xs transition-colors ${
                                 user && comment.likedBy?.includes(user.uid)
-                                  ? "text-primary font-medium"
-                                  : "text-gray-400 hover:text-primary"
+                                  ? "text-primary font-medium dark:text-primary-light"
+                                  : "text-neutral-400 hover:text-primary dark:text-neutral-500 dark:hover:text-primary-light"
                               }`}
                             >
-                              <span>
-                                {user && comment.likedBy?.includes(user.uid)
-                                  ? "♥"
-                                  : "♡"}
-                              </span>
+                              <Heart
+                                className="w-3.5 h-3.5"
+                                fill={user && comment.likedBy?.includes(user.uid) ? "currentColor" : "none"}
+                              />
                               {comment.likedBy?.length > 0 && (
                                 <span>{comment.likedBy.length}</span>
                               )}
                             </button>
                             {user && (
-                              <button
-                                onClick={() => handleReplyClick(comment)}
-                                className="text-xs text-gray-400 hover:text-primary transition-colors"
-                              >
+                              <button onClick={() => handleReplyClick(comment)} className={ACTION_BTN}>
                                 回覆
                               </button>
                             )}
                             {(user?.uid === comment.authorUid || user?.uid === ADMIN_UID) && (
-                              <button
-                                onClick={() => handleDelete(comment.id)}
-                                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                              >
+                              <button onClick={() => handleDelete(comment.id)} className={`${ACTION_BTN_DANGER} dark:hover:text-danger`}>
                                 刪除
                               </button>
                             )}
                             {user && user.uid !== comment.authorUid && (
-                              <button
-                                onClick={() => openReport(comment)}
-                                className="text-xs text-gray-400 hover:text-orange-500 transition-colors"
-                              >
+                              <button onClick={() => openReport(comment)} className={`${ACTION_BTN_WARNING} dark:hover:text-warning`}>
                                 檢舉
                               </button>
                             )}
                           </div>
                         </div>
-                        <p className="text-gray-700 text-sm leading-relaxed break-words">
+                        <p className="text-sm leading-relaxed break-words text-neutral-700 dark:text-neutral-300">
                           {comment.content}
                         </p>
                       </>
@@ -707,7 +693,7 @@ export default function CommentsSection({
 
                 {/* ---- 回覆列表 ---- */}
                 {replies.length > 0 && (
-                  <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
+                  <div className="ml-12 mt-3 space-y-3 pl-4 border-l-2 border-neutral-100 dark:border-neutral-800">
                     {visibleReplies.map((reply) => (
                       <div key={reply.id} id={`comment-${reply.id}`} className="flex gap-3">
                         <Avatar name={getDisplayName(reply)} uid={reply.deleted ? undefined : reply.authorUid} size="w-7 h-7" />
@@ -717,24 +703,28 @@ export default function CommentsSection({
                               {showDeletedIds.has(reply.id) ? (
                                 <div className="opacity-70">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-xs bg-red-100 text-red-500 px-1.5 py-0.5 rounded">已刪除</span>
+                                    <span className="text-xs px-1.5 py-0.5 rounded bg-danger-light text-danger">
+                                      已刪除
+                                    </span>
                                     <button
                                       onClick={() => toggleShowDeleted(reply.id)}
-                                      className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                                      className="text-xs transition-colors text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300"
                                     >
                                       隱藏
                                     </button>
                                   </div>
-                                  <p className="text-gray-500 text-sm leading-relaxed break-words line-through">
+                                  <p className="text-sm leading-relaxed break-words line-through text-neutral-500 dark:text-neutral-500">
                                     {reply.content}
                                   </p>
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-2">
-                                  <p className="text-gray-400 text-sm italic">此留言已被刪除</p>
+                                  <p className="text-sm italic text-neutral-400 dark:text-neutral-500">
+                                    此留言已被刪除
+                                  </p>
                                   <button
                                     onClick={() => toggleShowDeleted(reply.id)}
-                                    className="text-xs text-gray-400 hover:text-primary transition-colors"
+                                    className={ACTION_BTN}
                                   >
                                     顯示
                                   </button>
@@ -743,62 +733,52 @@ export default function CommentsSection({
                             </div>
                           ) : (
                             <>
-                              <div className="flex items-center justify-between mb-1">
-                                <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center justify-between mb-1 gap-2">
+                                <div className="flex items-center gap-2 flex-wrap min-w-0">
                                   <FloorBadge floor={reply.floorNumber} />
-                                  <span className="font-medium text-dark text-sm">
+                                  <span className="font-medium text-sm text-neutral-900 dark:text-neutral-100">
                                     {getDisplayName(reply)}
                                   </span>
-                                  <span className="text-xs text-gray-400">
+                                  <span className="text-xs text-neutral-400 dark:text-neutral-500">
                                     {formatDate(reply.createdAt)}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 flex-shrink-0">
                                   {/* 按讚 */}
                                   <button
                                     onClick={() => handleLike(reply)}
                                     className={`flex items-center gap-1 text-xs transition-colors ${
                                       user && reply.likedBy?.includes(user.uid)
-                                        ? "text-primary font-medium"
-                                        : "text-gray-400 hover:text-primary"
+                                        ? "text-primary font-medium dark:text-primary-light"
+                                        : "text-neutral-400 hover:text-primary dark:text-neutral-500 dark:hover:text-primary-light"
                                     }`}
                                   >
-                                    <span>
-                                      {user && reply.likedBy?.includes(user.uid)
-                                        ? "♥"
-                                        : "♡"}
-                                    </span>
+                                    <Heart
+                                      className="w-3.5 h-3.5"
+                                      fill={user && reply.likedBy?.includes(user.uid) ? "currentColor" : "none"}
+                                    />
                                     {reply.likedBy?.length > 0 && (
                                       <span>{reply.likedBy.length}</span>
                                     )}
                                   </button>
                                   {user && (
-                                    <button
-                                      onClick={() => handleReplyClick(reply)}
-                                      className="text-xs text-gray-400 hover:text-primary transition-colors"
-                                    >
+                                    <button onClick={() => handleReplyClick(reply)} className={ACTION_BTN}>
                                       回覆
                                     </button>
                                   )}
                                   {(user?.uid === reply.authorUid || user?.uid === ADMIN_UID) && (
-                                    <button
-                                      onClick={() => handleDelete(reply.id)}
-                                      className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                                    >
+                                    <button onClick={() => handleDelete(reply.id)} className={`${ACTION_BTN_DANGER} dark:hover:text-danger`}>
                                       刪除
                                     </button>
                                   )}
                                   {user && user.uid !== reply.authorUid && (
-                                    <button
-                                      onClick={() => openReport(reply)}
-                                      className="text-xs text-gray-400 hover:text-orange-500 transition-colors"
-                                    >
+                                    <button onClick={() => openReport(reply)} className={`${ACTION_BTN_WARNING} dark:hover:text-warning`}>
                                       檢舉
                                     </button>
                                   )}
                                 </div>
                               </div>
-                              <p className="text-gray-700 text-sm leading-relaxed break-words">
+                              <p className="text-sm leading-relaxed break-words text-neutral-700 dark:text-neutral-300">
                                 {reply.content}
                               </p>
                             </>
@@ -810,12 +790,9 @@ export default function CommentsSection({
                     {!isRepliesExpanded && hiddenReplyCount > 0 && (
                       <button
                         onClick={() =>
-                          setExpandedReplies((prev) => ({
-                            ...prev,
-                            [comment.id]: true,
-                          }))
+                          setExpandedReplies((prev) => ({ ...prev, [comment.id]: true }))
                         }
-                        className="text-xs text-primary hover:text-primary/80 transition-colors"
+                        className={ACTION_BTN}
                       >
                         展開 {hiddenReplyCount} 則回覆
                       </button>
@@ -823,12 +800,9 @@ export default function CommentsSection({
                     {isRepliesExpanded && replies.length > REPLY_LIMIT && (
                       <button
                         onClick={() =>
-                          setExpandedReplies((prev) => ({
-                            ...prev,
-                            [comment.id]: false,
-                          }))
+                          setExpandedReplies((prev) => ({ ...prev, [comment.id]: false }))
                         }
-                        className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-xs transition-colors text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300"
                       >
                         收起回覆
                       </button>
@@ -836,9 +810,9 @@ export default function CommentsSection({
                   </div>
                 )}
 
-                {/* ---- 回覆輸入框（顯示在該 thread 底部） ---- */}
+                {/* ---- 回覆輸入框 ---- */}
                 {isReplyingHere && (
-                  <div className="ml-12 mt-3 pl-4 border-l-2 border-primary/30">
+                  <div className="ml-12 mt-3 pl-4 border-l-2 border-primary/30 dark:border-primary/40">
                     <div className="flex gap-2">
                       <Avatar
                         name={user?.displayName || user?.email}
@@ -853,8 +827,10 @@ export default function CommentsSection({
                           onChange={(e) => setReplyContent(e.target.value)}
                           maxLength={MAX_LENGTH}
                           rows={2}
-                          className="w-full px-3 py-2 border border-primary/40 rounded-lg resize-none
-                                   focus:outline-none focus:ring-2 focus:ring-primary/50 text-dark text-sm"
+                          className="w-full px-3 py-2 rounded-lg resize-none text-sm border
+                                     bg-white text-neutral-900 placeholder-neutral-400 border-primary/40
+                                     focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                                     dark:bg-neutral-800 dark:text-neutral-100 dark:border-primary/50"
                         />
                         <div className="flex items-center justify-end gap-2 mt-1">
                           <button
@@ -862,16 +838,17 @@ export default function CommentsSection({
                               setReplyingTo(null);
                               setReplyContent("");
                             }}
-                            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-xs transition-colors text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300"
                           >
                             取消
                           </button>
                           <button
                             onClick={handleSubmitReply}
                             disabled={replySubmitting || !replyContent.trim()}
-                            className="px-4 py-1.5 bg-primary text-white rounded-lg hover:bg-primary/90
-                                     transition-colors text-xs font-medium
-                                     disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            className="px-4 py-1.5 rounded-lg text-xs font-medium transition-colors
+                                       bg-primary text-white hover:bg-primary-dark
+                                       disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed
+                                       dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500"
                           >
                             {replySubmitting ? "送出中..." : "送出回覆"}
                           </button>
@@ -883,19 +860,23 @@ export default function CommentsSection({
               </div>
             );
           })}
-          {/* 展開更多第一層留言 */}
+          {/* 展開全部第一層留言 */}
           {!showAllTopLevel && sortedTopLevel.length > TOP_LEVEL_LIMIT && (
             <button
               onClick={() => setShowAllTopLevel(true)}
-              className="w-full py-2 text-sm text-primary hover:text-primary/80 transition-colors border border-primary/30 rounded-lg"
+              className="w-full py-2 text-sm rounded-lg border transition-colors
+                         text-primary border-primary/30 hover:bg-primary/5
+                         dark:text-primary-light dark:border-primary-light/30 dark:hover:bg-primary/10"
             >
-              展開全部留言（還有 {sortedTopLevel.length - TOP_LEVEL_LIMIT} 則）
+              展開全部留言(還有 {sortedTopLevel.length - TOP_LEVEL_LIMIT} 則)
             </button>
           )}
           {showAllTopLevel && sortedTopLevel.length > TOP_LEVEL_LIMIT && (
             <button
               onClick={() => setShowAllTopLevel(false)}
-              className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors border border-gray-200 rounded-lg"
+              className="w-full py-2 text-sm rounded-lg border transition-colors
+                         text-neutral-500 border-neutral-200 hover:bg-neutral-100
+                         dark:text-neutral-400 dark:border-neutral-800 dark:hover:bg-neutral-800"
             >
               收起留言
             </button>
@@ -906,28 +887,37 @@ export default function CommentsSection({
       {/* ========== 檢舉對話框 ========== */}
       {reportingComment && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={() => !reportSubmitting && setReportingComment(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6"
+            className="w-full max-w-md p-6 rounded-2xl shadow-2xl
+                       bg-white dark:bg-neutral-900"
             onClick={(e) => e.stopPropagation()}
           >
             {reportSuccess ? (
               <div className="text-center py-4">
-                <p className="text-green-600 font-semibold text-lg">已成功送出檢舉</p>
-                <p className="text-gray-500 text-sm mt-1">我們會盡快審查此留言</p>
+                <p className="text-lg font-semibold text-success">已成功送出檢舉</p>
+                <p className="text-sm mt-1 text-neutral-500 dark:text-neutral-400">
+                  我們會盡快審查此留言
+                </p>
               </div>
             ) : (
               <>
-                <h3 className="text-lg font-bold text-dark mb-1">檢舉留言</h3>
-                <p className="text-sm text-gray-500 mb-4 bg-gray-50 p-3 rounded-lg break-words">
+                <h3 className="text-lg font-bold mb-1 text-neutral-900 dark:text-neutral-100">
+                  檢舉留言
+                </h3>
+                <p className="text-sm mb-4 p-3 rounded-lg break-words
+                              text-neutral-500 bg-neutral-100
+                              dark:text-neutral-400 dark:bg-neutral-800">
                   「{reportingComment.content.slice(0, 80)}{reportingComment.content.length > 80 ? "..." : ""}」
                 </p>
 
                 {/* 檢舉原因 */}
                 <div className="mb-4">
-                  <p className="text-sm font-medium text-dark mb-2">檢舉原因</p>
+                  <p className="text-sm font-medium mb-2 text-neutral-900 dark:text-neutral-100">
+                    檢舉原因
+                  </p>
                   <div className="space-y-2">
                     {[
                       { value: "spam", label: "垃圾訊息" },
@@ -944,7 +934,9 @@ export default function CommentsSection({
                           onChange={(e) => setReportReason(e.target.value)}
                           className="accent-primary"
                         />
-                        <span className="text-sm text-dark">{option.label}</span>
+                        <span className="text-sm text-neutral-900 dark:text-neutral-100">
+                          {option.label}
+                        </span>
                       </label>
                     ))}
                   </div>
@@ -952,9 +944,11 @@ export default function CommentsSection({
 
                 {/* 詳細說明 */}
                 <div className="mb-5">
-                  <p className="text-sm font-medium text-dark mb-1">
+                  <p className="text-sm font-medium mb-1 text-neutral-900 dark:text-neutral-100">
                     詳細說明
-                    <span className="text-gray-400 font-normal ml-1">（選填）</span>
+                    <span className="ml-1 font-normal text-neutral-400 dark:text-neutral-500">
+                      (選填)
+                    </span>
                   </p>
                   <textarea
                     value={reportDetail}
@@ -962,10 +956,12 @@ export default function CommentsSection({
                     placeholder="請描述詳細情況..."
                     rows={3}
                     maxLength={300}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg resize-none text-sm
-                             focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full px-3 py-2 text-sm rounded-lg resize-none border
+                               bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                               focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                               dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
                   />
-                  <p className="text-xs text-gray-400 text-right mt-0.5">
+                  <p className="text-xs text-right mt-0.5 text-neutral-400 dark:text-neutral-500">
                     {reportDetail.length} / 300
                   </p>
                 </div>
@@ -974,14 +970,18 @@ export default function CommentsSection({
                 <div className="flex gap-3">
                   <button
                     onClick={() => setReportingComment(null)}
-                    className="flex-1 px-4 py-2 bg-gray-100 text-dark rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                    className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                               bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                               dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
                   >
                     取消
                   </button>
                   <button
                     onClick={handleReport}
                     disabled={reportSubmitting}
-                    className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium disabled:opacity-60"
+                    className="flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                               bg-warning text-white hover:opacity-90
+                               disabled:opacity-60"
                   >
                     {reportSubmitting ? "送出中..." : "送出檢舉"}
                   </button>
