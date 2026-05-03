@@ -1,5 +1,20 @@
+// ============================================
+// 檔案名稱: ReadingPage.js
+// 路徑: src/pages/ReadingPage.js
+// 用途: 小說章節閱讀頁 — 沉浸式閱讀模式 (紙白底 / 夜間深底,
+//       內文宋體 + drop cap + 1.85 行距,800px 最大寬度,不放 Footer 維持沉浸)
+// ============================================
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ArrowLeft,
+  ArrowRight,
+  List,
+  AlertCircle,
+} from "lucide-react";
 import Navbar from "../components/Navbar";
 import { getNovelById } from "../utils/novelsHelper";
 import { markChapterAsRead } from "../utils/readHistoryManager";
@@ -10,7 +25,7 @@ import { ref, getBytes } from "firebase/storage";
 import { storage } from "../firebase/config";
 import { getChapter } from "../firebase/chapters";
 
-const CHARS_PER_PAGE = 3000; // 每頁字數上限
+const CHARS_PER_PAGE = 3000;
 
 function ReadingPage() {
   const { id, chapter } = useParams();
@@ -26,7 +41,6 @@ function ReadingPage() {
   const [error, setError] = useState(null);
 
   const chapterNumber = parseInt(chapter);
-  // 快取已從 Storage 下載並解析的章節（含 content），避免重複 fetch
   const txtCacheRef = useRef(null);
 
   // ========== 載入小說資料 ==========
@@ -36,7 +50,6 @@ function ReadingPage() {
         setLoading(true);
         setError(null);
 
-        // 找到小說 (支援 mockData + 上傳的小說)
         const foundNovel = getNovelById(id);
         if (!foundNovel) {
           setError("找不到此小說");
@@ -47,7 +60,6 @@ function ReadingPage() {
         let currentChapterData = null;
 
         if (foundNovel.txtUrl) {
-          // 舊格式：從 Storage 取得 TXT（有快取則直接使用）
           let parsedChapters = [];
           if (txtCacheRef.current && txtCacheRef.current.novelId === id) {
             parsedChapters = txtCacheRef.current.chapters;
@@ -74,10 +86,8 @@ function ReadingPage() {
           }
           setChapters(chaptersData);
 
-          // 新格式（Phase 18+）：從子集合讀取
           currentChapterData = await getChapter(id, chapterNumber);
 
-          // 最舊格式 fallback（Phase 18 以前）：內容直接在 chapters 陣列裡
           if (!currentChapterData) {
             currentChapterData = chaptersData.find(
               (ch) => ch.chapterNumber === chapterNumber
@@ -91,7 +101,6 @@ function ReadingPage() {
         }
         setCurrentChapter(currentChapterData);
 
-        // 計算分頁數
         const pages = Math.ceil((currentChapterData.content || "").length / CHARS_PER_PAGE);
         setTotalPages(pages);
 
@@ -117,7 +126,6 @@ function ReadingPage() {
   // ========== 取得當前頁內容 ==========
   const getCurrentPageContent = () => {
     if (!currentChapter) return "";
-
     const start = (currentPage - 1) * CHARS_PER_PAGE;
     const end = start + CHARS_PER_PAGE;
     return currentChapter.content.slice(start, end);
@@ -128,13 +136,11 @@ function ReadingPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [currentPage]);
 
-  // ========== 換頁處理 ==========
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > totalPages) return;
     setCurrentPage(newPage);
   };
 
-  // ========== 切換章節 ==========
   const handleChapterChange = (direction) => {
     const currentIndex = chapters.findIndex(
       (ch) => ch.chapterNumber === chapterNumber
@@ -154,7 +160,7 @@ function ReadingPage() {
   // ========== Loading 狀態 ==========
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#FEFDFB]">
+      <div className="min-h-screen bg-reading-light dark:bg-reading-dark">
         <Navbar showBackButton={true} />
         <ReadingPageSkeleton />
       </div>
@@ -164,14 +170,18 @@ function ReadingPage() {
   // ========== Error 狀態 ==========
   if (error) {
     return (
-      <div className="min-h-screen bg-light">
+      <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
         <Navbar showBackButton={true} />
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <p className="text-red-500 text-xl mb-4">✖ {error}</p>
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-danger" />
+            <p className="text-lg mb-6 text-neutral-700 dark:text-neutral-300">
+              {error}
+            </p>
             <button
               onClick={() => navigate(`/novel/${id}`)}
-              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-purple-700 transition"
+              className="px-6 py-3 rounded-lg font-semibold transition-colors
+                         bg-primary text-white hover:bg-primary-dark"
             >
               返回小說詳情
             </button>
@@ -182,112 +192,158 @@ function ReadingPage() {
   }
 
   // ========== 主要內容 ==========
+  const currentChapterIndex = chapters.findIndex(
+    (ch) => ch.chapterNumber === chapterNumber
+  );
+  const hasPrevChapter = currentChapterIndex > 0;
+  const hasNextChapter = currentChapterIndex < chapters.length - 1;
+
+  // 找出第一個非空白段落 — 用於 drop cap (僅第一頁)
+  const pageContent = getCurrentPageContent();
+  const paragraphs = pageContent.split("\n");
+  const firstNonEmptyIdx = paragraphs.findIndex((p) => p.trim() !== "");
+
   return (
-    <div className="min-h-screen bg-[#FEFDFB]">
-      {/* 導覽列 */}
+    <div className="min-h-screen bg-reading-light dark:bg-reading-dark">
       <Navbar showBackButton={true} />
 
-      {/* 章節標題區 */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
-          <h1 className="text-2xl font-bold text-dark text-center mb-2 break-words">
+      {/* ========== 章節標題區 ========== */}
+      <header className="border-b bg-white border-neutral-200
+                         dark:bg-neutral-900 dark:border-neutral-800">
+        <div className="container mx-auto px-4 py-6 max-w-3xl">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-center mb-2 break-words
+                         text-neutral-900 dark:text-neutral-100">
             {currentChapter.title}
           </h1>
-          <div className="flex items-center justify-center gap-4 text-sm text-gray-600">
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm
+                          text-neutral-500 dark:text-neutral-400">
             <span>{novel.title}</span>
-            <span>•</span>
+            <span className="text-neutral-300 dark:text-neutral-700">·</span>
             <span>{novel.author}</span>
-            <span>•</span>
+            <span className="text-neutral-300 dark:text-neutral-700">·</span>
             <span>{currentChapter.wordCount} 字</span>
           </div>
           {totalPages > 1 && (
-            <div className="text-center text-sm text-gray-500 mt-2">
+            <div className="text-center text-xs mt-2 text-neutral-400 dark:text-neutral-500">
               第 {currentPage} / {totalPages} 頁
             </div>
           )}
         </div>
-      </div>
+      </header>
 
-      {/* 內容區 */}
-      <div className="container mx-auto px-4 py-8 max-w-[800px]">
-        <div
+      {/* ========== 內容區 ========== */}
+      <div className="container mx-auto px-4 py-8 sm:py-10 max-w-[800px]">
+        <article
           ref={contentRef}
-          className="prose prose-lg max-w-none bg-white rounded-lg shadow-sm p-8 md:p-12"
-          style={{
-            fontSize: "1.1rem",
-            lineHeight: "1.8",
-            color: "#2D3436",
-          }}
+          className="font-body text-[1.1rem] sm:text-[1.15rem] leading-[1.85]
+                     text-neutral-800 dark:text-neutral-200"
         >
-          {getCurrentPageContent()
-            .split("\n")
-            .map((paragraph, index) => (
-              <p key={index} className="mb-4 indent-8">
+          {paragraphs.map((paragraph, index) => {
+            const isDropCap =
+              currentPage === 1 &&
+              index === firstNonEmptyIdx &&
+              paragraph.trim() !== "";
+            return (
+              <p
+                key={index}
+                className={`mb-6 break-words ${
+                  isDropCap
+                    ? "first-letter:font-heading first-letter:text-[3.6em] first-letter:font-bold first-letter:float-left first-letter:leading-[0.9] first-letter:mr-[0.1em] first-letter:mt-[0.05em]"
+                    : "indent-8"
+                }`}
+              >
                 {paragraph}
               </p>
-            ))}
-        </div>
+            );
+          })}
+        </article>
 
-        {/* 分頁控制 */}
+        {/* ========== 分頁控制 (章節內分頁) ========== */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-8">
+          <div className="flex justify-center items-center gap-3 mt-10">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium transition-all
+                         border-neutral-300 text-neutral-700
+                         hover:border-primary hover:text-primary
+                         disabled:opacity-40 disabled:cursor-not-allowed
+                         disabled:hover:border-neutral-300 disabled:hover:text-neutral-700
+                         dark:border-neutral-700 dark:text-neutral-300
+                         dark:hover:border-primary-light dark:hover:text-primary-light"
             >
+              <ChevronLeft className="w-4 h-4" />
               上一頁
             </button>
-            <span className="text-gray-600">
+            <span className="text-sm text-neutral-500 dark:text-neutral-400">
               {currentPage} / {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium transition-all
+                         border-neutral-300 text-neutral-700
+                         hover:border-primary hover:text-primary
+                         disabled:opacity-40 disabled:cursor-not-allowed
+                         disabled:hover:border-neutral-300 disabled:hover:text-neutral-700
+                         dark:border-neutral-700 dark:text-neutral-300
+                         dark:hover:border-primary-light dark:hover:text-primary-light"
             >
               下一頁
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* 章節導航 */}
-        <div className="flex justify-between items-center mt-8 gap-4">
-          {/* 上一章按鈕 (第一章時隱藏) */}
-          {chapters.findIndex((ch) => ch.chapterNumber === chapterNumber) >
-            0 && (
+        {/* ========== 章節導航 ========== */}
+        <div className="flex flex-wrap items-stretch gap-3 mt-10">
+          {hasPrevChapter && (
             <button
               onClick={() => handleChapterChange("prev")}
-              className="flex-1 px-6 py-3 bg-secondary text-white rounded-lg hover:bg-purple-400 transition"
+              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
+                         border-primary text-primary
+                         hover:bg-primary hover:text-white
+                         dark:border-primary-light dark:text-primary-light
+                         dark:hover:bg-primary-light dark:hover:text-neutral-900"
             >
-              ← 上一章
+              <ArrowLeft className="w-4 h-4" />
+              上一章
             </button>
           )}
 
-          {/* 目錄按鈕 */}
           <button
             onClick={() => navigate(`/novel/${id}`)}
-            className="flex-1 px-6 py-3 bg-gray-200 text-dark rounded-lg hover:bg-gray-300 transition"
+            className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all
+                       bg-neutral-100 text-neutral-700 hover:bg-neutral-200
+                       dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
           >
+            <List className="w-4 h-4" />
             目錄
           </button>
 
-          {/* 下一章按鈕 (最後一章時隱藏) */}
-          {chapters.findIndex((ch) => ch.chapterNumber === chapterNumber) <
-            chapters.length - 1 && (
+          {hasNextChapter && (
             <button
               onClick={() => handleChapterChange("next")}
-              className="flex-1 px-6 py-3 bg-secondary text-white rounded-lg hover:bg-purple-400 transition"
+              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
+                         border-primary text-primary
+                         hover:bg-primary hover:text-white
+                         dark:border-primary-light dark:text-primary-light
+                         dark:hover:bg-primary-light dark:hover:text-neutral-900"
             >
-              下一章 →
+              下一章
+              <ArrowRight className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
-      {/* 章節留言區 */}
-      <div className="max-w-[800px] mx-auto px-4 pb-16">
-        <CommentsSection novelId={id} chapterNumber={chapterNumber} chapters={chapters} />
+      {/* ========== 章節留言區 ========== */}
+      <div className="container mx-auto px-4 pb-16 max-w-[800px]">
+        <CommentsSection
+          novelId={id}
+          chapterNumber={chapterNumber}
+          chapters={chapters}
+        />
       </div>
     </div>
   );
