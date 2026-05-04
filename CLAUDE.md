@@ -370,11 +370,21 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=...
 
 ### Commit 預設行為
 
-> **在執行 commit 之前,必須先詢問使用者是否準備好 commit**(讓使用者有機會先測試)。
-> 使用者確認後,一次完整執行:`git commit` → `git push` → `gh pr create` → `gh pr merge`
-> 除非使用者明確說「不要 push」或「不要合併」,才只執行對應步驟。
+> 使用者透過「OK / 可以了 / 完成 / 驗證過了 / 直接 PR」等通過信號表示測試通過後,
+> **直接一路執行**(不再詢問「要 commit 了嗎」):
+>
+> `git commit` → `git push -u origin <branch>` → `gh pr create` → `gh pr merge --merge`
+> → `git checkout main && git pull` → `git branch -d <branch>` → `git remote prune origin`
+>
+> 實作前我會請使用者跑 `npm start` 驗證,那一步就是測試點;通過後即進完整流程。
+>
+> 例外:
+> - 使用者明確說「不要 push」「不要合併」時尊重,只跑前面對應的步驟
+> - 中間步驟風險高(動資料庫 / 刪檔案 / force push)還是要先問
+> - **遠端 branch 不主動刪除**(維持「分支保留由使用者決定」原則,留在 origin 當歷史)
+>
 > **注意**:這條規則適用於完成的功能,不適用於進行中的 branch(中間步驟只 commit 即可,
-> 等整個 branch 完成才 push + PR + merge)。
+> 等整個 branch 完成才 push + PR + merge + 清理)。
 
 ---
 
