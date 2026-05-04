@@ -1,6 +1,12 @@
-# 📚 PR 小說網
+<p align="center">
+  <img src="docs/logo.svg" alt="PR 小說網" width="60" height="64">
+</p>
 
-一個以 React 與 Firebase 打造的全端小說閱讀平台，提供閱讀、上傳、收藏、社群留言等完整功能。
+# PR 小說網
+
+一個以 React 與 Firebase 打造的全端內容平台，具備會員系統、社群互動（留言、按讚、檢舉）、內容上傳與管理後台等完整功能。
+
+> 同樣的架構可延伸應用於部落格、知識庫、線上課程、評論社群等內容型網站。
 
 **Live Demo：[https://pr-novel.vercel.app](https://pr-novel.vercel.app)**
 
@@ -64,9 +70,11 @@
 
 | 類別 | 技術 |
 |------|------|
-| UI 框架 | React 18 (Hooks) |
-| 路由 | React Router 6 |
-| 樣式 | Tailwind CSS |
+| UI 框架 | React 19 (Hooks) |
+| 路由 | React Router 7 |
+| 樣式 | Tailwind CSS 3 + 自訂 token system + Dark mode |
+| Icons | lucide-react |
+| 字型 | Noto Sans TC + Noto Serif TC (SC fallback) |
 | 後端 / 資料庫 | Firebase Firestore |
 | 認證 | Firebase Authentication |
 | 圖片處理 | Canvas API |
@@ -128,7 +136,7 @@ src/
 
 ## 開發說明
 
-本專案使用 [Claude Code](https://claude.ai/code)（AI 工具）輔助開發，包含程式碼生成、架構規劃與問題排查。
+本專案使用 [Claude Code](https://claude.ai/code)（AI 工具）輔助開發，包含程式碼生成與問題排查。核心邏輯設計、架構決策與功能規劃均由開發者主導。
 
 ## License
 
