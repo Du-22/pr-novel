@@ -389,9 +389,15 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=...
 `git commit` → `git push -u origin <branch>` → `gh pr create` → `gh pr merge --merge`
 → `git checkout main && git pull` → `git branch -d <branch>` → `git remote prune origin`
 
-**階段四:dev server 保留**
-PR 合併後 dev server **留在背景繼續跑**(CRA 從磁碟 hot-reload,不需重啟)。
-使用者主動要求才 kill。
+**階段四:dev server 結束時機**
+
+PR 合併完 = 工作肯定結束 → **自動 kill dev server**,不需要問。
+
+End-of-session 詢問時機:當 Claude 判斷使用者可能想休息(自然停頓 / 完成大段工作 / 對話自然收尾)而主動問「今天到這邊?」時,**如果 dev server 還在跑,順便一起問「要不要關掉 dev server?」**:
+- 使用者說休息 → 一起 kill 任何還在跑的 dev server
+- 使用者說繼續 → 不關,接下個任務
+
+(不主動干預使用者「要不要結束」的判斷 — 但當已經要問了,順便一起問,避免多問一次。)
 
 **例外:**
 - 使用者明確說「不要 push」「不要合併」時尊重,只跑前面對應的步驟
