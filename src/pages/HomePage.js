@@ -1,7 +1,7 @@
 // ============================================
 // 檔案名稱: HomePage.js
 // 路徑: src/pages/HomePage.js
-// 用途: 首頁 — Hero + 本期強推 (橫滾) + 隨機標籤推薦 (grid/list)
+// 用途: 首頁 — Hero + 本期強推 (Cover Flow 3D 書架) + 隨機標籤推薦 (grid/list)
 // ============================================
 
 import React, { useState, useMemo } from "react";
@@ -13,6 +13,7 @@ import NovelCard from "../components/NovelCard";
 import NovelListItem from "../components/NovelListItem";
 import ViewToggle from "../components/ViewToggle";
 import Footer from "../components/Footer";
+import CoverFlowShelf from "../components/CoverFlowShelf";
 import { getAllNovels, getAllTags } from "../utils/novelsHelper";
 import { getWeeklyRandomNovels, getRandomTagSections } from "../utils/random";
 
@@ -59,23 +60,10 @@ const HomePage = () => {
       <HeroSection />
 
       <main className="container mx-auto px-4 py-12 md:py-16">
-        {/* ========== 本期強推 (橫向滾動) ========== */}
+        {/* ========== 本期強推 (Cover Flow 3D 書架) ========== */}
         <section className="mb-12 md:mb-16">
           <SectionHeader title="本期強推" />
-
-          {/* 橫向滾動容器 */}
-          <div className="overflow-x-auto pb-4 -mx-4 px-4">
-            <div className="flex gap-4 sm:gap-6" style={{ minWidth: "min-content" }}>
-              {featuredNovels.map((novel) => (
-                <div
-                  key={novel.id}
-                  className="flex-shrink-0 w-[170px] sm:w-[220px] md:w-[280px]"
-                >
-                  <NovelCard novel={novel} />
-                </div>
-              ))}
-            </div>
-          </div>
+          <CoverFlowShelf books={featuredNovels} />
         </section>
 
         {/* ========== View toggle (隨機標籤區的控制) ========== */}
@@ -94,10 +82,18 @@ const HomePage = () => {
             <SectionHeader title={section.title} />
 
             {view === "grid" ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                {section.novels.map((novel) => (
-                  <NovelCard key={novel.id} novel={novel} />
-                ))}
+              // 卡片視圖:橫向滾動 + 固定寬度,跟舊版本期強推同樣的卡片尺寸 (170/220/280)
+              <div className="overflow-x-auto pb-4 -mx-4 px-4">
+                <div className="flex gap-4 sm:gap-6" style={{ minWidth: "min-content" }}>
+                  {section.novels.map((novel) => (
+                    <div
+                      key={novel.id}
+                      className="flex-shrink-0 w-[170px] sm:w-[220px] md:w-[280px]"
+                    >
+                      <NovelCard novel={novel} />
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

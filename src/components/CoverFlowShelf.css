@@ -1,0 +1,397 @@
+/* ============================================
+   檔案名稱: CoverFlowShelf.css
+   路徑: src/components/CoverFlowShelf.css
+   用途: CoverFlowShelf 元件的 3D 書架專屬樣式 — 立體書面、書脊面、紙頁邊緣、
+         idle 旋轉動畫、模式切換轉場。Tailwind 無法表達 3D transform 的部分集中在這。
+   ============================================ */
+
+/* ============================================
+   ROOT WRAPPER
+   ============================================ */
+.cf-root {
+    width: 100%;
+}
+
+/* ============================================
+   SHELF WRAP (perspective + nav buttons)
+   ============================================ */
+.cf-shelf-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
+    perspective: 2000px;
+    perspective-origin: 50% 60%;
+}
+
+/* ============================================
+   SHELF (3D 容器) — 高度跟隨 bookWidth 動態長
+   CSS 變數預設值由 React inline style 覆蓋(支援響應式)
+   ============================================ */
+.cf-shelf {
+    --cf-bookWidth: 250px;
+    --cf-thickness: 30px;
+    --cf-spineWidth: 50px;
+    --cf-spineFontSize: 15px;
+    --cf-centerTilt: 20deg;
+    --cf-hoverAdd: 12deg;
+    --cf-transition: 0.85s;
+
+    position: relative;
+    width: 100%;
+    height: calc(var(--cf-bookWidth) * 5 / 4 + 80px);
+    transform-style: preserve-3d;
+}
+
+.cf-floor {
+    position: absolute;
+    bottom: 4%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    max-width: 900px;
+    height: 24px;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.22) 0%, transparent 70%);
+    filter: blur(10px);
+    pointer-events: none;
+}
+
+.dark .cf-floor {
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55) 0%, transparent 70%);
+}
+
+/* ============================================
+   BOOK — 釘在 shelf 底部、橫向 margin 置中
+   ============================================ */
+.cf-book {
+    position: absolute;
+    left: 50%;
+    bottom: 30px;
+    width: var(--cf-bookWidth);
+    aspect-ratio: 4 / 5;
+    margin-left: calc(var(--cf-bookWidth) / -2);
+    cursor: default;
+    transition:
+        transform var(--cf-transition) cubic-bezier(0.65, 0, 0.35, 1),
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+}
+
+.cf-book[data-state="center"] {
+    cursor: pointer;
+}
+
+/* ============================================
+   MODE: SPINE CARD (側邊書脊,2D)
+   ============================================ */
+.cf-mode-spine {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: var(--cf-spineWidth);
+    height: 100%;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    box-shadow:
+        inset 5px 0 12px rgba(0, 0, 0, 0.5),
+        inset -3px 0 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 12px 28px -8px rgba(0, 0, 0, 0.35);
+    transition: opacity 0.35s, transform 0.35s;
+}
+
+/* 斜紋紋理 overlay — 跟 DefaultCover 視覺呼應 */
+.cf-mode-spine::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(135deg,
+        transparent 0,
+        transparent 14px,
+        rgba(255, 255, 255, 0.05) 14px,
+        rgba(255, 255, 255, 0.05) 15px);
+    pointer-events: none;
+}
+
+.cf-spine-title {
+    position: relative;
+    z-index: 2;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-family: 'Noto Serif TC', 'Noto Serif SC', serif;
+    font-weight: 500;
+    font-size: var(--cf-spineFontSize);
+    letter-spacing: 0.22em;
+    color: white;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    text-align: center;
+    padding: 14px 0;
+    max-height: 92%;
+    overflow: hidden;
+}
+
+/* ============================================
+   MODE: 3D BOOK (中央立體書)
+   雙層 wrapper:
+     .cf-book-outer 處理 hover 加成旋轉
+     .cf-book-inner 處理 idle 動畫(兩種 transform 不打架)
+   ============================================ */
+.cf-mode-3d {
+    position: absolute;
+    inset: 0;
+    perspective: 1800px;
+    perspective-origin: 50% 50%;
+    transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.cf-book-outer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateY(0deg);
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.cf-book[data-state="center"]:hover .cf-book-outer {
+    transform: rotateY(var(--cf-hoverAdd));
+}
+
+.cf-book-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateY(var(--cf-centerTilt)) rotateX(-2deg);
+}
+
+@keyframes cf-idle {
+    0%, 100% {
+        transform: rotateY(var(--cf-centerTilt)) rotateX(-2deg);
+    }
+    50% {
+        transform: rotateY(calc(var(--cf-centerTilt) + 10deg)) rotateX(-1deg);
+    }
+}
+
+.cf-book[data-state="center"] .cf-book-inner {
+    animation: cf-idle 3s ease-in-out infinite;
+}
+
+/* ============================================
+   COVER FACE — 封面正面
+   ============================================ */
+.cf-cover {
+    position: absolute;
+    inset: 0;
+    background-color: #2D3436;
+    background-size: cover;
+    background-position: center;
+    transform: translateZ(calc(var(--cf-thickness) / 2));
+    box-shadow:
+        inset -8px 0 18px rgba(0, 0, 0, 0.38),
+        inset 0 0 0 1px rgba(0, 0, 0, 0.15),
+        0 28px 50px -16px rgba(0, 0, 0, 0.42);
+    overflow: hidden;
+}
+
+/* 用 DefaultCover 元件繪製的封面 — 不要自己畫底色,
+   讓 DefaultCover 內部漸層接管 */
+.cf-cover--default {
+    background: none;
+    background-color: transparent;
+}
+
+.cf-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(115deg,
+        transparent 30%,
+        rgba(255, 255, 255, 0.06) 45%,
+        rgba(255, 255, 255, 0.18) 50%,
+        rgba(255, 255, 255, 0.06) 55%,
+        transparent 70%);
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* ============================================
+   BACK / SPINE FACE / EDGES — 書背 / 書脊 / 三邊紙頁
+   ============================================ */
+.cf-back {
+    position: absolute;
+    inset: 0;
+    background: var(--cover-spine, #1a1a1a);
+    transform: translateZ(calc(var(--cf-thickness) / -2)) rotateY(180deg);
+}
+
+.cf-3d-spine {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--cf-thickness);
+    height: 100%;
+    background: linear-gradient(to right,
+        rgba(0, 0, 0, 0.2) 0%,
+        var(--cover-spine, #2D3436) 35%,
+        var(--cover-spine, #2D3436) 65%,
+        rgba(0, 0, 0, 0.5) 100%);
+    transform-origin: left center;
+    transform: translateX(calc(var(--cf-thickness) / 2)) rotateY(90deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    border-top: 1px solid rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.cf-3d-spine-title {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    font-family: 'Noto Serif TC', 'Noto Serif SC', serif;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    padding: 12px 0;
+    opacity: 0.95;
+    white-space: nowrap;
+    max-height: 92%;
+    overflow: hidden;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.cf-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: var(--cf-thickness);
+    background:
+        repeating-linear-gradient(to bottom, #efe6cf 0px, #e2d8be 1px, #efe6cf 2px),
+        linear-gradient(to bottom, #f2eada 0%, #ccc2a8 100%);
+    transform-origin: bottom center;
+    transform: translateY(calc(var(--cf-thickness) / -2)) rotateX(90deg);
+    box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.18);
+}
+
+.cf-bottom {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: var(--cf-thickness);
+    background: repeating-linear-gradient(to top, #e2d8be 0px, #d2c7a8 1px, #e2d8be 2px);
+    transform-origin: top center;
+    transform: translateY(calc(var(--cf-thickness) / 2)) rotateX(-90deg);
+}
+
+.cf-edge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--cf-thickness);
+    height: 100%;
+    background: repeating-linear-gradient(to right, #e8e0cc 0px, #ddd5bf 1px, #e8e0cc 2px);
+    transform-origin: right center;
+    transform: translateX(calc(var(--cf-thickness) / -2)) rotateY(-90deg);
+}
+
+/* ============================================
+   STATE TRANSITIONS — 兩個模式之間 fade 切換
+   ============================================ */
+.cf-book[data-state="side"] .cf-mode-spine {
+    opacity: 1;
+}
+.cf-book[data-state="side"] .cf-mode-3d {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.85);
+    transition-delay: 0s;
+}
+.cf-book[data-state="center"] .cf-mode-spine {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.7);
+}
+.cf-book[data-state="center"] .cf-mode-3d {
+    opacity: 1;
+    transform: scale(1);
+    transition-delay: 0.15s;  /* 等 spine card fade out 後再進場 */
+}
+
+/* ============================================
+   NAV BUTTONS — 左右切換按鈕
+   ============================================ */
+.cf-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #E4E4E7;
+    display: grid;
+    place-items: center;
+    color: #18181B;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
+}
+
+.dark .cf-nav-btn {
+    background: #27272A;
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #F4F4F5;
+}
+
+.cf-nav-btn:hover {
+    border-color: #6C5CE7;
+    color: #6C5CE7;
+    transform: translateY(-50%) scale(1.06);
+}
+
+.cf-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.cf-nav-btn--prev { left: 8px; }
+.cf-nav-btn--next { right: 8px; }
+
+@media (min-width: 640px) {
+    .cf-nav-btn { width: 48px; height: 48px; }
+    .cf-nav-btn--prev { left: 16px; }
+    .cf-nav-btn--next { right: 16px; }
+}
+
+@media (min-width: 1024px) {
+    .cf-nav-btn { width: 52px; height: 52px; }
+    .cf-nav-btn--prev { left: 24px; }
+    .cf-nav-btn--next { right: 24px; }
+}
+
+/* ============================================
+   ACCESSIBILITY — 尊重 prefers-reduced-motion
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .cf-book,
+    .cf-mode-spine,
+    .cf-mode-3d,
+    .cf-book-inner,
+    .cf-book-outer {
+        transition-duration: 0.01ms !important;
+    }
+    .cf-book[data-state="center"] .cf-book-inner {
+        animation: none !important;
+    }
+}
