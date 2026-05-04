@@ -1,8 +1,7 @@
-<p align="center">
-  <img src="docs/logo.svg" alt="PR 小說網" width="60" height="64">
-</p>
-
-# PR 小說網
+<h1 align="center">
+  <img src="docs/logo.svg" alt="" width="40" valign="middle">
+  &nbsp;PR 小說網
+</h1>
 
 一個以 React 與 Firebase 打造的全端內容平台，具備會員系統、社群互動（留言、按讚、檢舉）、內容上傳與管理後台等完整功能。
 
