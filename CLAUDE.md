@@ -38,6 +38,7 @@ src/
 │   ├── Logo.js                # PR Monogram SVG 字標,可重複用
 │   ├── DefaultCover.js        # 程式生成封面(書名 hash → 8 種漸層 + 直書書名)
 │   ├── HeroSection.js         # 首頁 Hero 區塊(紫色 brand moment + 雙 CTA)
+│   ├── CoverFlowShelf.js      # 首頁本期強推 3D 書架(含 .css)— 中央 3D 書 + 側邊書脊 + 響應式
 │   ├── NovelCard.js           # 小說卡片(grid 模式)
 │   ├── NovelListItem.js       # 小說卡片(list 模式)
 │   ├── RankingCard.js         # 排行榜卡片(含 1/2/3 金銀銅徽章)
@@ -299,7 +300,7 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=...
 
 ## ✅ 已完成功能
 
-- 首頁(Hero + 本期強推橫滾 + 隨機標籤 grid + Footer)
+- 首頁(Hero + 本期強推 Cover Flow 3D 書架 + 隨機標籤橫滾 + Footer)
 - 詳情頁(DefaultCover、章節目錄、暖黃收藏按鈕、評分、相似推薦、留言)
 - 閱讀頁(宋體內文 + drop cap + 紙白底 + 章節導航)
 - 排行榜總覽 + 3 子榜(Top 30)
@@ -317,6 +318,7 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=...
 - **Visual system v2**(全站重新套設計 token + dark mode + lucide icons + 移除 AI 味)
 - **Dark mode toggle**(navbar 切換按鈕 + 持久化 + 抗 FOUC)
 - **DefaultCover**(8 種漸層,書名 hash 對應,自動配 dark mode)
+- **Cover Flow 3D 書架**(首頁本期強推 — 中央 3D 立體書 + idle 旋轉動畫 + 兩側書脊 + 鍵盤/swipe 切換 + 響應式三組 config + dark mode 自動偵測)
 - **PR Monogram Logo**(自訂 SVG 字標,取代原本生成 PNG)
 - **Noto Sans TC + Noto Serif TC** 字型系統(SC fallback)
 
