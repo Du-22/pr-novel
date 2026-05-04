@@ -368,23 +368,39 @@ REACT_APP_FIREBASE_MEASUREMENT_ID=...
 > 列出預計要做的所有功能,等使用者明確確認後才開始動工。
 > 不可自行決定 Phase 的內容範圍。
 
-### Commit 預設行為
+### 開發迭代與 Commit 預設行為
 
-> 使用者透過「OK / 可以了 / 完成 / 驗證過了 / 直接 PR」等通過信號表示測試通過後,
-> **直接一路執行**(不再詢問「要 commit 了嗎」):
->
-> `git commit` → `git push -u origin <branch>` → `gh pr create` → `gh pr merge --merge`
-> → `git checkout main && git pull` → `git branch -d <branch>` → `git remote prune origin`
->
-> 實作前我會請使用者跑 `npm start` 驗證,那一步就是測試點;通過後即進完整流程。
->
-> 例外:
-> - 使用者明確說「不要 push」「不要合併」時尊重,只跑前面對應的步驟
-> - 中間步驟風險高(動資料庫 / 刪檔案 / force push)還是要先問
-> - **遠端 branch 不主動刪除**(維持「分支保留由使用者決定」原則,留在 origin 當歷史)
->
-> **注意**:這條規則適用於完成的功能,不適用於進行中的 branch(中間步驟只 commit 即可,
-> 等整個 branch 完成才 push + PR + merge + 清理)。
+完整流程拆成四階段:
+
+**階段一:dev server 由 Claude 主動啟動**
+- 改完程式碼後,Claude 用 `run_in_background: true` 跑 `npm start`,
+  等 5-10 秒讓它編譯,確認 `Compiled successfully` 或錯誤訊息後告訴使用者
+  「可以打開 http://localhost:3000 驗證了」
+- **不要叫使用者自己去跑** — 他只負責在瀏覽器看
+- 已經在跑就不要重複啟動;hot reload 接管後續變更
+- 啟不來(port 衝突 / 編譯失敗)主動回報並排除
+
+**階段二:使用者驗證 → 給通過信號**
+使用者透過「OK / 可以了 / 完成 / 驗證過了 / 直接 PR / 一路做到合併」等明確通過信號
+表示測試通過。
+
+**階段三:Claude 直接一路執行 PR 完整流程**(不再詢問「要 commit 了嗎」)
+
+`git commit` → `git push -u origin <branch>` → `gh pr create` → `gh pr merge --merge`
+→ `git checkout main && git pull` → `git branch -d <branch>` → `git remote prune origin`
+
+**階段四:dev server 保留**
+PR 合併後 dev server **留在背景繼續跑**(CRA 從磁碟 hot-reload,不需重啟)。
+使用者主動要求才 kill。
+
+**例外:**
+- 使用者明確說「不要 push」「不要合併」時尊重,只跑前面對應的步驟
+- 中間步驟風險高(動資料庫 / 刪檔案 / force push)還是要先問
+- **遠端 branch 不主動刪除**(維持「分支保留由使用者決定」原則,留在 origin 當歷史)
+- 含糊回應(「嗯」「然後呢」)不算通過信號,要進一步確認
+
+**注意**:這條規則適用於完成的功能,不適用於進行中的 branch(中間步驟只 commit 即可,
+等整個 branch 完成才 push + PR + merge + 清理)。
 
 ---
 
