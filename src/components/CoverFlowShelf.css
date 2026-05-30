@@ -38,7 +38,8 @@
 
     position: relative;
     width: 100%;
-    height: calc(var(--cf-bookWidth) * 5 / 4 + 80px);
+    /* 跟下面 .cf-book aspect-ratio 同步：寫死 6/4 = 1.5，改一個要改兩個 */
+    height: calc(var(--cf-bookWidth) * 6 / 4 + 80px);
     transform-style: preserve-3d;
 }
 
@@ -62,12 +63,13 @@
 /* ============================================
    BOOK — 釘在 shelf 底部、橫向 margin 置中
    ============================================ */
+/* aspect-ratio 跟上面 .cf-shelf 的 height 公式同步：4/6 = 標準小說書冊比例 */
 .cf-book {
     position: absolute;
     left: 50%;
     bottom: 30px;
     width: var(--cf-bookWidth);
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 4 / 6;
     margin-left: calc(var(--cf-bookWidth) / -2);
     cursor: default;
     transition:
@@ -121,12 +123,12 @@
     z-index: 2;
     writing-mode: vertical-rl;
     text-orientation: upright;
-    font-family: 'Noto Serif TC', 'Noto Serif SC', serif;
-    font-weight: 500;
+    font-family: 'LXGW WenKai Screen', 'Noto Sans TC', 'Noto Sans SC', sans-serif;
+    font-weight: 400;
     font-size: var(--cf-spineFontSize);
-    letter-spacing: 0.22em;
+    letter-spacing: 0.15em;
     color: white;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 0 8px rgba(0, 0, 0, 0.35);
     white-space: nowrap;
     text-align: center;
     padding: 14px 0;
@@ -255,10 +257,10 @@
 .cf-3d-spine-title {
     writing-mode: vertical-rl;
     text-orientation: upright;
-    font-family: 'Noto Serif TC', 'Noto Serif SC', serif;
-    font-weight: 500;
-    font-size: 13px;
-    letter-spacing: 0.2em;
+    font-family: 'LXGW WenKai Screen', 'Noto Sans TC', 'Noto Sans SC', sans-serif;
+    font-weight: 400;
+    font-size: 15px;
+    letter-spacing: 0.15em;
     text-align: center;
     padding: 12px 0;
     opacity: 0.95;
