@@ -167,6 +167,12 @@ const Navbar = ({ showBackButton = false }) => {
             </Link>
             <Link
               to="/upload"
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  navigate("/auth");
+                }
+              }}
               className="text-neutral-700 hover:text-primary transition-colors
                          dark:text-neutral-300 dark:hover:text-primary-light"
             >
@@ -533,7 +539,13 @@ const Navbar = ({ showBackButton = false }) => {
             </Link>
             <Link
               to="/upload"
-              onClick={() => setShowMobileMenu(false)}
+              onClick={(e) => {
+                setShowMobileMenu(false);
+                if (!user) {
+                  e.preventDefault();
+                  navigate("/auth");
+                }
+              }}
               className="py-3 text-neutral-700 border-b border-neutral-100 hover:text-primary transition-colors
                          dark:text-neutral-300 dark:border-neutral-800 dark:hover:text-primary-light"
             >

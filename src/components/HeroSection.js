@@ -6,8 +6,9 @@
 // ============================================
 
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Compass, PenLine } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 
 const HERO_BG_LIGHT = `
   radial-gradient(circle at 18% 22%, rgba(255,255,255,0.18) 0%, transparent 55%),
@@ -25,6 +26,17 @@ const STRIPES =
   "repeating-linear-gradient(135deg, transparent 0, transparent 32px, rgba(255,255,255,0.04) 32px, rgba(255,255,255,0.04) 33px)";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // 未登入點「成為創作者」→ 直接跳 /auth；已登入正常進 /upload
+  const handleCreator = (e) => {
+    if (!user) {
+      e.preventDefault();
+      navigate("/auth");
+    }
+  };
+
   return (
     <section className="container mx-auto px-4 mt-6 md:mt-8">
       <div
@@ -63,6 +75,7 @@ const HeroSection = () => {
               </Link>
               <Link
                 to="/upload"
+                onClick={handleCreator}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg
                            bg-transparent text-white font-semibold text-sm sm:text-base
                            border border-white/40 hover:bg-white/10 hover:border-white transition-all"
