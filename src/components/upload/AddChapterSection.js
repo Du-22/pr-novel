@@ -6,10 +6,9 @@
 
 import React, { useState } from "react";
 import { CheckCircle2 } from "lucide-react";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "../../firebase/config";
 import { parseNovelChapters } from "../../utils/parser";
 import { uploadChapters, addChapter } from "../../firebase/chapters";
+import { formatChapterLabelText } from "../../utils/chapterLabel";
 
 const INPUT_CLASS =
   "w-full px-3 py-2 rounded-lg border " +
@@ -27,15 +26,18 @@ export default function AddChapterSection({
 }) {
   const [activeTab, setActiveTab] = useState("txt");
 
-  // TXT tab 狀態
   const [fileName, setFileName] = useState("");
   const [previewChapters, setPreviewChapters] = useState([]);
   const [txtError, setTxtError] = useState("");
 
-  // 直接輸入 tab 狀態
+  // 直接輸入 tab：取現有章節最大編號 + 1
+  // 排除特殊章節（chapterNumber 可能是 0 或 999999）
+  const regularChapters = existingChapters.filter(
+    (ch) => !ch.isSpecial && ch.chapterNumber < 900000
+  );
   const nextNumber =
-    existingChapters.length > 0
-      ? Math.max(...existingChapters.map((ch) => ch.chapterNumber)) + 1
+    regularChapters.length > 0
+      ? Math.max(...regularChapters.map((ch) => ch.chapterNumber)) + 1
       : 1;
   const [manualNumber, setManualNumber] = useState(nextNumber);
   const [manualTitle, setManualTitle] = useState("");
@@ -43,21 +45,19 @@ export default function AddChapterSection({
   const [manualError, setManualError] = useState("");
 
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [success, setSuccess] = useState("");
 
   const existingNumbers = new Set(
     existingChapters.map((ch) => ch.chapterNumber)
   );
 
-  const mergeAndUpdate = async (newChapters) => {
+  // 把既有章節 + 新章節合併成新的章節 metadata 陣列，回傳給父層 state
+  // （不再寫進 novels doc 的 chapters 欄位，因為改放子集合）
+  const mergeLocally = (newChapters) => {
     const map = {};
     existingChapters.forEach((ch) => {
-      map[ch.chapterNumber] = {
-        chapterNumber: ch.chapterNumber,
-        title: ch.title,
-        wordCount: ch.wordCount || 0,
-        isSpecial: ch.isSpecial || false,
-      };
+      map[ch.chapterNumber] = ch;
     });
     newChapters.forEach((ch) => {
       map[ch.chapterNumber] = {
@@ -65,20 +65,19 @@ export default function AddChapterSection({
         title: ch.title,
         wordCount: ch.wordCount || ch.content?.length || 0,
         isSpecial: ch.isSpecial || false,
+        label: ch.label || null,
       };
     });
-    const merged = Object.values(map).sort(
+    return Object.values(map).sort(
       (a, b) => a.chapterNumber - b.chapterNumber
     );
-    await updateDoc(doc(db, "novels", novelId), { chapters: merged });
-    return merged;
   };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.name.endsWith(".txt")) {
-      setTxtError("請選擇 .txt 檔案");
+    if (!/\.(txt|md)$/i.test(file.name)) {
+      setTxtError("請選擇 .txt 或 .md 檔案");
       return;
     }
 
@@ -111,17 +110,21 @@ export default function AddChapterSection({
     setUploading(true);
     setTxtError("");
     try {
-      await uploadChapters(novelId, previewChapters);
-      const merged = await mergeAndUpdate(previewChapters);
+      setUploadProgress({ done: 0, total: previewChapters.length });
+      await uploadChapters(novelId, previewChapters, (done, total) =>
+        setUploadProgress({ done, total })
+      );
+      const merged = mergeLocally(previewChapters);
       setPreviewChapters([]);
       setFileName("");
       setSuccess(`成功新增 ${previewChapters.length} 個章節`);
       onChaptersUpdated(merged);
     } catch (err) {
       console.error("新增章節失敗:", err);
-      setTxtError("新增失敗,請稍後再試");
+      setTxtError(err.message || "新增失敗,請稍後再試");
     } finally {
       setUploading(false);
+      setUploadProgress({ done: 0, total: 0 });
     }
   };
 
@@ -134,6 +137,10 @@ export default function AddChapterSection({
       setManualError("請輸入章節內容");
       return;
     }
+    if (existingNumbers.has(manualNumber)) {
+      setManualError(`第 ${manualNumber} 章已存在,請使用其他編號`);
+      return;
+    }
 
     setUploading(true);
     setManualError("");
@@ -144,17 +151,18 @@ export default function AddChapterSection({
         content: manualContent.trim(),
         wordCount: manualContent.trim().length,
         isSpecial: false,
+        label: null,
       };
       await addChapter(novelId, newChapter);
-      const merged = await mergeAndUpdate([newChapter]);
+      const merged = mergeLocally([newChapter]);
       setManualTitle("");
       setManualContent("");
       setManualNumber(manualNumber + 1);
-      setSuccess(`成功新增「${newChapter.title}」`);
+      setSuccess(`成功新增「${formatChapterLabelText(newChapter)}」`);
       onChaptersUpdated(merged);
     } catch (err) {
       console.error("新增章節失敗:", err);
-      setManualError("新增失敗,請稍後再試");
+      setManualError(err.message || "新增失敗,請稍後再試");
     } finally {
       setUploading(false);
     }
@@ -213,21 +221,21 @@ export default function AddChapterSection({
       {activeTab === "txt" && (
         <div>
           <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-400">
-            上傳包含新章節的 TXT 檔案,系統會自動略過已存在的章節。
+            上傳包含新章節的 .txt / .md 檔案,系統會自動略過已存在的章節。
           </p>
 
           <label className="flex flex-col items-center justify-center p-8 cursor-pointer rounded-lg border-2 border-dashed transition-colors
                             border-neutral-300 hover:border-primary
                             dark:border-neutral-700 dark:hover:border-primary-light">
             <span className="mb-1 text-neutral-700 dark:text-neutral-300">
-              {fileName ? fileName : "點擊選擇 TXT 檔案"}
+              {fileName ? fileName : "點擊選擇 .txt / .md 檔案"}
             </span>
             <span className="text-sm text-neutral-400 dark:text-neutral-500">
               支援 UTF-8 編碼
             </span>
             <input
               type="file"
-              accept=".txt"
+              accept=".txt,.md,text/plain,text/markdown"
               onChange={handleFileSelect}
               className="hidden"
             />
@@ -251,7 +259,7 @@ export default function AddChapterSection({
                     className="flex justify-between gap-3 px-4 py-2 text-sm"
                   >
                     <span className="text-neutral-900 dark:text-neutral-100">
-                      {ch.title}
+                      {formatChapterLabelText(ch)}
                     </span>
                     <span className="text-neutral-400 dark:text-neutral-500">
                       {ch.wordCount} 字
@@ -267,7 +275,11 @@ export default function AddChapterSection({
                            bg-primary text-white hover:bg-primary-dark
                            disabled:opacity-60"
               >
-                {uploading ? "新增中..." : `確認新增 ${previewChapters.length} 個章節`}
+                {uploading
+                  ? uploadProgress.total > 0
+                    ? `上傳中 ${uploadProgress.done}/${uploadProgress.total}`
+                    : "新增中..."
+                  : `確認新增 ${previewChapters.length} 個章節`}
               </button>
             </div>
           )}
@@ -296,7 +308,7 @@ export default function AddChapterSection({
               <label className={LABEL_CLASS}>章節標題</label>
               <input
                 type="text"
-                placeholder={`第${manualNumber}章 標題名稱`}
+                placeholder="標題名稱"
                 value={manualTitle}
                 onChange={(e) => setManualTitle(e.target.value)}
                 className={INPUT_CLASS}

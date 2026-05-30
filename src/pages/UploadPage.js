@@ -39,6 +39,7 @@ export default function UploadPage() {
   const [coverImage, setCoverImage] = useState(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState("");
 
   const [storageInfo] = useState(getStorageUsage());
@@ -95,7 +96,10 @@ export default function UploadPage() {
         const firestoreId = await syncUploadToFirestore(savedNovel.id, user.uid);
         if (firestoreId) {
           targetId = firestoreId;
-          await uploadChapters(firestoreId, chapters);
+          setUploadProgress({ done: 0, total: chapters.length });
+          await uploadChapters(firestoreId, chapters, (done, total) =>
+            setUploadProgress({ done, total })
+          );
         }
         await refreshNovels();
       }
@@ -104,9 +108,10 @@ export default function UploadPage() {
       navigate(`/novel/${targetId}`);
     } catch (err) {
       console.error("上傳失敗:", err);
-      setError("上傳失敗,請稍後再試");
+      setError(err.message || "上傳失敗,請稍後再試");
     } finally {
       setIsSubmitting(false);
+      setUploadProgress({ done: 0, total: 0 });
     }
   };
 
@@ -237,7 +242,11 @@ export default function UploadPage() {
                          disabled:bg-neutral-300 disabled:text-neutral-500 disabled:cursor-not-allowed
                          dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500"
             >
-              {isSubmitting ? "上傳中..." : "上傳小說"}
+              {isSubmitting
+                ? uploadProgress.total > 0
+                  ? `上傳章節中 ${uploadProgress.done}/${uploadProgress.total}`
+                  : "上傳中..."
+                : "上傳小說"}
             </button>
             <button
               type="button"

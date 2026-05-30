@@ -1,12 +1,11 @@
 // ============================================
 // 檔案名稱: EditUploadPage.js
 // 路徑: src/pages/EditUploadPage.js
-// 用途: 編輯已上傳小說 — 基本資料 / 封面 / 章節管理 / 舊格式遷移
+// 用途: 編輯已上傳小說 — 基本資料 / 封面 / 章節管理
 // ============================================
 
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import BasicInfoForm from "../components/upload/BasicInfoForm";
@@ -15,13 +14,10 @@ import ChapterInfo from "../components/upload/ChapterInfo";
 import EditNotice from "../components/upload/EditNotice";
 import AddChapterSection from "../components/upload/AddChapterSection";
 import { getNovelById, updateNovel } from "../firebase/novels";
+import { getChaptersMetadata } from "../firebase/chapters";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
 import { uploadCoverImage } from "../firebase/storageHelper";
-import { uploadChapters } from "../firebase/chapters";
-import { parseNovelChapters } from "../utils/parser";
-import { ref, getBytes } from "firebase/storage";
-import { storage } from "../firebase/config";
 
 export default function EditUploadPage() {
   const { id } = useParams();
@@ -42,10 +38,6 @@ export default function EditUploadPage() {
   const [error, setError] = useState("");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [originalData, setOriginalData] = useState(null);
-  const [isNewFormat, setIsNewFormat] = useState(false);
-  const [hasTxtUrl, setHasTxtUrl] = useState(false);
-  const [migrating, setMigrating] = useState(false);
-  const [migrationError, setMigrationError] = useState("");
 
   useEffect(() => {
     const load = async () => {
@@ -70,10 +62,11 @@ export default function EditUploadPage() {
       setTags(tagsString);
       setCoverImage(novel.coverImage);
       setStatus(novel.status || "serializing");
-      setChapters(novel.chapters || []);
-      setHasTxtUrl(!!novel.txtUrl);
-      const chaptersHaveContent = (novel.chapters || []).some((ch) => ch.content);
-      setIsNewFormat(!novel.txtUrl && !chaptersHaveContent);
+
+      // 章節列表從子集合抓
+      const chaptersMeta = await getChaptersMetadata(id);
+      setChapters(chaptersMeta);
+
       setOriginalData({
         title: novel.title,
         author: novel.author,
@@ -112,51 +105,6 @@ export default function EditUploadPage() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [hasUnsavedChanges]);
-
-  const handleMigrate = async () => {
-    setMigrating(true);
-    setMigrationError("");
-    try {
-      let chaptersToMigrate;
-
-      if (hasTxtUrl) {
-        const storageRef = ref(storage, `novels/${id}/content.txt`);
-        const bytes = await getBytes(storageRef);
-        const text = new TextDecoder("utf-8").decode(bytes);
-        chaptersToMigrate = parseNovelChapters(text);
-        if (chaptersToMigrate.length === 0) {
-          throw new Error("無法解析章節,請確認 TXT 格式");
-        }
-      } else {
-        chaptersToMigrate = chapters.filter((ch) => ch.content);
-        if (chaptersToMigrate.length === 0) {
-          throw new Error("找不到可遷移的章節內容");
-        }
-      }
-
-      await uploadChapters(id, chaptersToMigrate);
-
-      const chaptersMetadata = chaptersToMigrate.map(
-        ({ chapterNumber, title, wordCount, isSpecial }) => ({
-          chapterNumber,
-          title,
-          wordCount: wordCount || 0,
-          isSpecial: isSpecial || false,
-        })
-      );
-      await updateNovel(id, { txtUrl: null, chapters: chaptersMetadata }, user.uid);
-
-      setChapters(chaptersMetadata);
-      setHasTxtUrl(false);
-      setIsNewFormat(true);
-      await refreshNovels();
-    } catch (err) {
-      console.error("遷移失敗:", err);
-      setMigrationError("遷移失敗:" + err.message);
-    } finally {
-      setMigrating(false);
-    }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -311,47 +259,15 @@ export default function EditUploadPage() {
           <ChapterInfo
             chapters={chapters}
             novelId={id}
-            isNewFormat={isNewFormat}
+            isNewFormat={true}
             onChapterDeleted={setChapters}
           />
 
-          {isNewFormat ? (
-            <AddChapterSection
-              novelId={id}
-              existingChapters={chapters}
-              onChaptersUpdated={setChapters}
-            />
-          ) : (
-            <div className="rounded-2xl border p-5 sm:p-6
-                            bg-warning-light/40 border-warning/30
-                            dark:bg-warning/10 dark:border-warning/30">
-              <div className="flex items-start gap-3 mb-3">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-warning" />
-                <div>
-                  <h3 className="font-semibold mb-1 text-neutral-900 dark:text-neutral-100">
-                    此小說使用舊格式
-                  </h3>
-                  <p className="text-sm leading-relaxed text-neutral-700 dark:text-neutral-300">
-                    遷移後可解鎖章節管理功能(新增、編輯、刪除章節)。
-                    遷移過程會將 Storage 中的 TXT 解析並寫入 Firestore,原始檔案不會被刪除。
-                  </p>
-                </div>
-              </div>
-              {migrationError && (
-                <p className="ml-8 mb-3 text-sm text-danger">{migrationError}</p>
-              )}
-              <button
-                type="button"
-                onClick={handleMigrate}
-                disabled={migrating}
-                className="ml-8 px-5 py-2 rounded-lg text-sm font-medium transition-colors
-                           bg-warning text-white hover:opacity-90
-                           disabled:opacity-60"
-              >
-                {migrating ? "遷移中..." : "一鍵遷移到新格式"}
-              </button>
-            </div>
-          )}
+          <AddChapterSection
+            novelId={id}
+            existingChapters={chapters}
+            onChaptersUpdated={setChapters}
+          />
 
           <div className="flex gap-3 sm:gap-4">
             <button

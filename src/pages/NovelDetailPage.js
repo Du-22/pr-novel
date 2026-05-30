@@ -5,9 +5,9 @@
 //       無封面時自動套用 DefaultCover,收藏按鈕用 warm accent (整體 design 的關鍵 accent moment)
 // ============================================
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { BookOpen, Heart, Check, X } from "lucide-react";
+import { BookOpen, Heart, Check, X, ChevronDown, Search } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import NovelCard from "../components/NovelCard";
@@ -18,6 +18,8 @@ import RatingInput from "../components/RatingInput";
 import { NovelDetailSkeleton } from "../components/Skeleton";
 import { getAllNovels } from "../utils/novelsHelper";
 import { getTotalWordCount, formatWordCount } from "../utils/parser";
+import { formatChapterLabel, formatChapterLabelText } from "../utils/chapterLabel";
+import { getChaptersMetadata } from "../firebase/chapters";
 import { getNovelsByTag } from "../utils/random";
 import { getNovelReadData } from "../utils/readHistoryManager";
 import {
@@ -35,6 +37,89 @@ import { useAuth } from "../hooks/useAuth";
 import { getUserRating, submitRating, getRatingStats } from "../firebase/ratings";
 
 const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
+
+// ========== 章節分組 helper ==========
+// 依總章數動態決定分組大小；特別章節（cn > maxMain）獨立成一組「特別章節」放最後
+function groupChapters(chapters) {
+  if (!chapters || chapters.length === 0) return [];
+
+  const maxMain = chapters
+    .filter((c) => !c.isSpecial && c.chapterNumber > 0)
+    .reduce((max, c) => Math.max(max, c.chapterNumber), 0);
+
+  const mainAndPre = chapters.filter((c) => c.chapterNumber <= maxMain);
+  const postSpecials = chapters.filter((c) => c.chapterNumber > maxMain);
+
+  // 太少章節不分組
+  if (chapters.length < 30) {
+    return [{ key: "all", label: "全部章節", chapters }];
+  }
+
+  let groupSize;
+  if (chapters.length < 100) groupSize = 20;
+  else if (chapters.length < 500) groupSize = 50;
+  else groupSize = 100;
+
+  const groups = [];
+  for (let start = 1; start <= maxMain; start += groupSize) {
+    const end = Math.min(start + groupSize - 1, maxMain);
+    const groupChs = mainAndPre.filter(
+      (c) =>
+        // 序章（cn=0）歸到第一組
+        (c.chapterNumber === 0 && start === 1) ||
+        (c.chapterNumber >= start && c.chapterNumber <= end)
+    );
+    if (groupChs.length > 0) {
+      groups.push({
+        key: `range-${start}-${end}`,
+        label: `第 ${start}-${end} 章`,
+        chapters: groupChs,
+      });
+    }
+  }
+
+  if (postSpecials.length > 0) {
+    groups.push({
+      key: "specials",
+      label: "特別章節",
+      chapters: postSpecials,
+    });
+  }
+
+  return groups;
+}
+
+// 單筆章節 Link 渲染（分組模式跟搜尋模式共用）
+// inGroup=true 時樣式調整為「分組內 list item」（無邊框、用 divider 分隔）
+function renderChapterLink(chapter, novelId, isChapterRead, inGroup = false) {
+  const { prefix, title } = formatChapterLabel(chapter);
+  const baseCls = inGroup
+    ? "flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-primary/5 dark:hover:bg-primary/10"
+    : "group flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-all border-neutral-200 hover:border-primary hover:bg-primary/5 dark:border-neutral-800 dark:hover:border-primary-light dark:hover:bg-primary/10";
+  return (
+    <Link
+      key={chapter.chapterNumber}
+      to={`/novel/${novelId}/read/${chapter.chapterNumber}`}
+      className={baseCls}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {isChapterRead(chapter.chapterNumber) && (
+          <Check className="w-4 h-4 flex-shrink-0 text-primary dark:text-primary-light" />
+        )}
+        <span className="font-medium break-words transition-colors text-neutral-900 dark:text-neutral-100">
+          <span className="text-neutral-400 dark:text-neutral-500 font-normal">
+            {prefix}
+            {title ? " - " : ""}
+          </span>
+          {title}
+        </span>
+      </div>
+      <span className="flex-shrink-0 text-sm ml-3 text-neutral-500 dark:text-neutral-400">
+        {formatWordCount(chapter.wordCount)}
+      </span>
+    </Link>
+  );
+}
 
 // 共用 Card 樣式 — 白底 (dark mode 黑底) + subtle 邊框 + 圓角
 const Card = ({ children, className = "" }) => (
@@ -64,6 +149,8 @@ export default function NovelDetailPage() {
   const [userRating, setUserRating] = useState(null);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [showCoverLightbox, setShowCoverLightbox] = useState(false);
+  const [chapterSearch, setChapterSearch] = useState("");
+  const [openGroups, setOpenGroups] = useState(() => new Set());
   // 防止 React StrictMode 雙重觸發閱讀數
   const incrementedForIdRef = useRef(null);
 
@@ -139,9 +226,8 @@ export default function NovelDetailPage() {
   const loadChapters = async (novel) => {
     try {
       setLoading(true);
-      if (novel.chapters && novel.chapters.length > 0) {
-        setChapters(novel.chapters);
-      }
+      const chaptersMeta = await getChaptersMetadata(novel.id);
+      setChapters(chaptersMeta);
     } catch (error) {
       console.error("載入章節失敗:", error);
       setChapters([]);
@@ -193,13 +279,51 @@ export default function NovelDetailPage() {
   const getReadButtonText = () => {
     if (lastChapter) {
       const chapter = chapters.find((c) => c.chapterNumber === lastChapter);
-      if (chapter) return `繼續閱讀 (${chapter.title})`;
+      if (chapter) return `繼續閱讀 (${formatChapterLabelText(chapter)})`;
       return `繼續閱讀 (第${lastChapter}章)`;
     }
     return "開始閱讀";
   };
 
   const isChapterRead = (chapterNumber) => readChapters.includes(chapterNumber);
+
+  // ========== 章節分組 + 搜尋 ==========
+  const chapterGroups = useMemo(() => groupChapters(chapters), [chapters]);
+
+  const filteredChapters = useMemo(() => {
+    const q = chapterSearch.trim().toLowerCase();
+    if (!q) return null;
+    return chapters.filter((ch) => {
+      const prefix = `第${ch.chapterNumber}章`;
+      const title = (ch.title || "").toLowerCase();
+      return prefix.toLowerCase().includes(q) || title.includes(q);
+    });
+  }, [chapters, chapterSearch]);
+
+  // 預設展開：第一組 + 含目前閱讀章節的那組
+  useEffect(() => {
+    if (chapterGroups.length === 0) return;
+    const initial = new Set([chapterGroups[0].key]);
+    if (lastChapter != null) {
+      const currentGroup = chapterGroups.find((g) =>
+        g.chapters.some((c) => c.chapterNumber === lastChapter)
+      );
+      if (currentGroup) initial.add(currentGroup.key);
+    }
+    setOpenGroups(initial);
+  }, [chapterGroups, lastChapter]);
+
+  const toggleGroup = (key) => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const expandAllGroups = () =>
+    setOpenGroups(new Set(chapterGroups.map((g) => g.key)));
+  const collapseAllGroups = () => setOpenGroups(new Set());
 
   if (!novel) {
     if (loading) {
@@ -264,11 +388,24 @@ export default function NovelDetailPage() {
                 ))}
               </div>
 
-              {/* 標題 */}
-              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight break-words
-                             text-neutral-900 dark:text-neutral-100">
-                {novel.title}
-              </h1>
+              {/* 標題 + 連載狀態 */}
+              <div className="flex items-start gap-3 flex-wrap">
+                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight break-words
+                               text-neutral-900 dark:text-neutral-100">
+                  {novel.title}
+                </h1>
+                {novel.status && (
+                  <span
+                    className={`flex-shrink-0 mt-2 text-xs px-2 py-1 rounded font-medium ${
+                      novel.status === "completed"
+                        ? "bg-info-light text-info"
+                        : "bg-success-light text-success"
+                    }`}
+                  >
+                    {novel.status === "completed" ? "完結" : "連載"}
+                  </span>
+                )}
+              </div>
 
               {/* 作者 */}
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm sm:text-base
@@ -388,10 +525,51 @@ export default function NovelDetailPage() {
 
         {/* ========== 章節目錄 ========== */}
         <Card>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-4
-                         text-neutral-900 dark:text-neutral-100">
-            章節目錄
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight
+                           text-neutral-900 dark:text-neutral-100">
+              章節目錄
+            </h2>
+            {!loading && chapters.length > 0 && chapterGroups.length > 1 && !chapterSearch && (
+              <div className="flex gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={expandAllGroups}
+                  className="px-3 py-1 rounded-md transition-colors
+                             text-neutral-600 hover:text-primary hover:bg-primary/5
+                             dark:text-neutral-400 dark:hover:text-primary-light dark:hover:bg-primary/10"
+                >
+                  展開全部
+                </button>
+                <button
+                  type="button"
+                  onClick={collapseAllGroups}
+                  className="px-3 py-1 rounded-md transition-colors
+                             text-neutral-600 hover:text-primary hover:bg-primary/5
+                             dark:text-neutral-400 dark:hover:text-primary-light dark:hover:bg-primary/10"
+                >
+                  全部折疊
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* 搜尋框 */}
+          {!loading && chapters.length > 0 && (
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+              <input
+                type="search"
+                value={chapterSearch}
+                onChange={(e) => setChapterSearch(e.target.value)}
+                placeholder="搜尋章節（編號或標題）..."
+                className="w-full pl-9 pr-3 py-2 rounded-lg border text-sm
+                           bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                           dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
+              />
+            </div>
+          )}
 
           {loading ? (
             <div className="space-y-2">
@@ -406,37 +584,69 @@ export default function NovelDetailPage() {
             <p className="text-center py-8 text-neutral-500 dark:text-neutral-400">
               暫無章節
             </p>
-          ) : (
+          ) : filteredChapters !== null ? (
+            // ===== 搜尋模式：扁平列表 =====
             <div className="space-y-2">
-              {chapters.map((chapter) => (
-                <Link
-                  key={chapter.chapterNumber}
-                  to={`/novel/${id}/read/${chapter.chapterNumber}`}
-                  className="group flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-all
-                             border-neutral-200 hover:border-primary hover:bg-primary/5
-                             dark:border-neutral-800 dark:hover:border-primary-light dark:hover:bg-primary/10"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {isChapterRead(chapter.chapterNumber) && (
-                      <Check className="w-4 h-4 flex-shrink-0 text-primary dark:text-primary-light" />
-                    )}
-                    <span
-                      className={`font-medium break-words transition-colors
-                                  group-hover:text-primary dark:group-hover:text-primary-light
-                                  ${
-                                    chapter.isSpecial
-                                      ? "text-primary dark:text-primary-light"
-                                      : "text-neutral-900 dark:text-neutral-100"
-                                  }`}
+              {filteredChapters.length === 0 ? (
+                <p className="text-center py-8 text-neutral-500 dark:text-neutral-400">
+                  找不到符合「{chapterSearch}」的章節
+                </p>
+              ) : (
+                filteredChapters.map((chapter) =>
+                  renderChapterLink(chapter, id, isChapterRead)
+                )
+              )}
+            </div>
+          ) : (
+            // ===== 分組折疊模式 =====
+            <div className="space-y-2">
+              {chapterGroups.map((group) => {
+                const isOpen = openGroups.has(group.key);
+                const readInGroup = group.chapters.filter((c) =>
+                  isChapterRead(c.chapterNumber)
+                ).length;
+                return (
+                  <div
+                    key={group.key}
+                    className="rounded-lg border overflow-hidden
+                               border-neutral-200 dark:border-neutral-800"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.key)}
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 transition-colors
+                                 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                     >
-                      {chapter.title}
-                    </span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <ChevronDown
+                          className={`w-4 h-4 flex-shrink-0 transition-transform text-neutral-500
+                                      ${isOpen ? "" : "-rotate-90"}`}
+                        />
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+                          {group.label}
+                        </span>
+                      </div>
+                      <span className="flex-shrink-0 text-sm text-neutral-500 dark:text-neutral-400">
+                        {readInGroup > 0 && (
+                          <span className="text-primary dark:text-primary-light">
+                            {readInGroup}/{group.chapters.length}
+                          </span>
+                        )}
+                        {readInGroup === 0 && `${group.chapters.length} 章`}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="border-t divide-y space-y-0
+                                      border-neutral-200 divide-neutral-100
+                                      dark:border-neutral-800 dark:divide-neutral-800">
+                        {group.chapters.map((chapter) =>
+                          renderChapterLink(chapter, id, isChapterRead, true)
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className="flex-shrink-0 text-sm ml-3 text-neutral-500 dark:text-neutral-400">
-                    {formatWordCount(chapter.wordCount)}
-                  </span>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </Card>

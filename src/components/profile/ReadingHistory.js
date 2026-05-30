@@ -10,7 +10,6 @@ import { History } from "lucide-react";
 import DefaultCover from "../DefaultCover";
 import { getAllReadHistory } from "../../utils/readHistoryManager";
 import { getAllNovels } from "../../utils/novelsHelper";
-import { parseNovelChapters } from "../../utils/parser";
 import { ProfileListSkeleton } from "../Skeleton";
 
 const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
@@ -45,24 +44,10 @@ export default function ReadingHistory() {
       .filter(Boolean)
       .sort((a, b) => new Date(b.lastRead) - new Date(a.lastRead));
 
-    const listWithChapters = await Promise.all(
-      historyArray.map(async (item) => {
-        try {
-          if (item.novel.txtFile) {
-            const response = await fetch(item.novel.txtFile);
-            const txtContent = await response.text();
-            const chapters = parseNovelChapters(txtContent);
-            return { ...item, totalChapters: chapters.length };
-          } else if (item.novel.chapters) {
-            return { ...item, totalChapters: item.novel.chapters.length };
-          }
-          return { ...item, totalChapters: 0 };
-        } catch (error) {
-          console.error("載入章節失敗:", error);
-          return { ...item, totalChapters: 0 };
-        }
-      })
-    );
+    const listWithChapters = historyArray.map((item) => ({
+      ...item,
+      totalChapters: item.novel.chapterCount || 0,
+    }));
 
     setReadingList(listWithChapters);
     setLoading(false);

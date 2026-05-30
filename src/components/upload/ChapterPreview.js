@@ -5,6 +5,7 @@
 // ============================================
 
 import React from "react";
+import { formatChapterLabelText } from "../../utils/chapterLabel";
 
 export default function ChapterPreview({ chapters }) {
   return (
@@ -16,7 +17,7 @@ export default function ChapterPreview({ chapters }) {
                      text-neutral-700 border-neutral-200
                      dark:text-neutral-300 dark:border-neutral-800"
         >
-          {ch.title} ({ch.wordCount?.toLocaleString() || 0} 字)
+          {formatChapterLabelText(ch)} ({ch.wordCount?.toLocaleString() || 0} 字)
         </div>
       ))}
     </div>

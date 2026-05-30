@@ -19,11 +19,9 @@ import Navbar from "../components/Navbar";
 import { getNovelById } from "../utils/novelsHelper";
 import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
-import { parseNovelChapters } from "../utils/parser";
 import { ReadingPageSkeleton } from "../components/Skeleton";
-import { ref, getBytes } from "firebase/storage";
-import { storage } from "../firebase/config";
-import { getChapter } from "../firebase/chapters";
+import { getChapter, getChaptersMetadata } from "../firebase/chapters";
+import { formatChapterLabel } from "../utils/chapterLabel";
 
 const CHARS_PER_PAGE = 3000;
 
@@ -41,7 +39,6 @@ function ReadingPage() {
   const [error, setError] = useState(null);
 
   const chapterNumber = parseInt(chapter);
-  const txtCacheRef = useRef(null);
 
   // ========== 載入小說資料 ==========
   useEffect(() => {
@@ -57,51 +54,25 @@ function ReadingPage() {
         }
         setNovel(foundNovel);
 
-        let currentChapterData = null;
-
-        if (foundNovel.txtUrl) {
-          let parsedChapters = [];
-          if (txtCacheRef.current && txtCacheRef.current.novelId === id) {
-            parsedChapters = txtCacheRef.current.chapters;
-          } else {
-            const storageRef = ref(storage, `novels/${id}/content.txt`);
-            const bytes = await getBytes(storageRef);
-            const text = new TextDecoder("utf-8").decode(bytes);
-            parsedChapters = parseNovelChapters(text);
-            txtCacheRef.current = { novelId: id, chapters: parsedChapters };
-          }
-          if (parsedChapters.length === 0) {
-            setError("無法解析章節");
-            return;
-          }
-          setChapters(parsedChapters);
-          currentChapterData = parsedChapters.find(
-            (ch) => ch.chapterNumber === chapterNumber
-          );
-        } else {
-          const chaptersData = foundNovel.chapters || [];
-          if (chaptersData.length === 0) {
-            setError("此小說尚無章節");
-            return;
-          }
-          setChapters(chaptersData);
-
-          currentChapterData = await getChapter(id, chapterNumber);
-
-          if (!currentChapterData) {
-            currentChapterData = chaptersData.find(
-              (ch) => ch.chapterNumber === chapterNumber
-            );
-          }
+        // 章節列表從子集合抓 metadata
+        const chaptersMeta = await getChaptersMetadata(id);
+        if (chaptersMeta.length === 0) {
+          setError("此小說尚無章節");
+          return;
         }
+        setChapters(chaptersMeta);
 
+        // 當前章節含內文（從 Storage fetch）
+        const currentChapterData = await getChapter(id, chapterNumber);
         if (!currentChapterData) {
           setError("找不到此章節");
           return;
         }
         setCurrentChapter(currentChapterData);
 
-        const pages = Math.ceil((currentChapterData.content || "").length / CHARS_PER_PAGE);
+        const pages = Math.ceil(
+          (currentChapterData.content || "").length / CHARS_PER_PAGE
+        );
         setTotalPages(pages);
 
         setCurrentPage(1);
@@ -198,10 +169,8 @@ function ReadingPage() {
   const hasPrevChapter = currentChapterIndex > 0;
   const hasNextChapter = currentChapterIndex < chapters.length - 1;
 
-  // 找出第一個非空白段落 — 用於 drop cap (僅第一頁)
   const pageContent = getCurrentPageContent();
   const paragraphs = pageContent.split("\n");
-  const firstNonEmptyIdx = paragraphs.findIndex((p) => p.trim() !== "");
 
   return (
     <div className="min-h-screen bg-reading-light dark:bg-reading-dark">
@@ -213,7 +182,18 @@ function ReadingPage() {
         <div className="container mx-auto px-4 py-6 max-w-3xl">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-center mb-2 break-words
                          text-neutral-900 dark:text-neutral-100">
-            {currentChapter.title}
+            {(() => {
+              const { prefix, title } = formatChapterLabel(currentChapter);
+              if (!title) return prefix;
+              return (
+                <>
+                  <span className="text-neutral-400 dark:text-neutral-500 font-normal">
+                    {prefix} -{" "}
+                  </span>
+                  {title}
+                </>
+              );
+            })()}
           </h1>
           <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm
                           text-neutral-500 dark:text-neutral-400">
@@ -232,30 +212,18 @@ function ReadingPage() {
       </header>
 
       {/* ========== 內容區 ========== */}
-      <div className="container mx-auto px-4 py-8 sm:py-10 max-w-[800px]">
+      <div className="container mx-auto px-4 py-8 sm:py-10
+                      max-w-[680px] md:max-w-[860px] lg:max-w-[960px]">
         <article
           ref={contentRef}
-          className="font-body text-[1.1rem] sm:text-[1.15rem] leading-[1.85]
-                     text-neutral-800 dark:text-neutral-200"
+          className="font-heading font-medium text-[1.1rem] sm:text-[1.15rem] leading-[1.85]
+                     text-neutral-900 dark:text-neutral-100"
         >
-          {paragraphs.map((paragraph, index) => {
-            const isDropCap =
-              currentPage === 1 &&
-              index === firstNonEmptyIdx &&
-              paragraph.trim() !== "";
-            return (
-              <p
-                key={index}
-                className={`mb-6 break-words ${
-                  isDropCap
-                    ? "first-letter:font-heading first-letter:text-[3.6em] first-letter:font-bold first-letter:float-left first-letter:leading-[0.9] first-letter:mr-[0.1em] first-letter:mt-[0.05em]"
-                    : "indent-8"
-                }`}
-              >
-                {paragraph}
-              </p>
-            );
-          })}
+          {paragraphs.map((paragraph, index) => (
+            <p key={index} className="mb-6 break-words indent-8">
+              {paragraph}
+            </p>
+          ))}
         </article>
 
         {/* ========== 分頁控制 (章節內分頁) ========== */}

@@ -1,14 +1,13 @@
 // ============================================
 // 檔案名稱: ChapterInfo.js
 // 路徑: src/components/upload/ChapterInfo.js
-// 用途: 章節資訊與管理列表(顯示章節數量、支援編輯/刪除新格式章節)
+// 用途: 章節資訊與管理列表(顯示章節數量、支援編輯/刪除)
 // ============================================
 
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { db } from "../../firebase/config";
 import { deleteChapter } from "../../firebase/chapters";
+import { formatChapterLabelText } from "../../utils/chapterLabel";
 
 export default function ChapterInfo({
   chapters,
@@ -24,22 +23,17 @@ export default function ChapterInfo({
     return chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
   };
 
-  const handleDelete = async (chapterNumber, chapterTitle) => {
-    if (!window.confirm(`確定要刪除「${chapterTitle}」嗎?此操作無法復原。`)) return;
+  const handleDelete = async (chapter) => {
+    const label = formatChapterLabelText(chapter);
+    if (!window.confirm(`確定要刪除「${label}」嗎?此操作無法復原。`)) return;
 
-    setDeletingNum(chapterNumber);
+    setDeletingNum(chapter.chapterNumber);
     try {
-      await deleteChapter(novelId, chapterNumber);
-
-      const novelRef = doc(db, "novels", novelId);
-      const novelSnap = await getDoc(novelRef);
-      if (novelSnap.exists()) {
-        const updated = (novelSnap.data().chapters || []).filter(
-          (ch) => ch.chapterNumber !== chapterNumber
-        );
-        await updateDoc(novelRef, { chapters: updated });
-        if (onChapterDeleted) onChapterDeleted(updated);
-      }
+      await deleteChapter(novelId, chapter.chapterNumber);
+      const updated = chapters.filter(
+        (ch) => ch.chapterNumber !== chapter.chapterNumber
+      );
+      if (onChapterDeleted) onChapterDeleted(updated);
     } catch (err) {
       console.error("刪除章節失敗:", err);
       alert("刪除失敗,請稍後再試");
@@ -74,7 +68,6 @@ export default function ChapterInfo({
         </span>
       </div>
 
-      {/* 章節列表(僅新格式顯示操作按鈕) */}
       {chapters.length > 0 && (
         <div className="border rounded-lg max-h-80 overflow-y-auto divide-y
                         border-neutral-200 divide-neutral-100
@@ -87,7 +80,7 @@ export default function ChapterInfo({
             >
               <div className="flex-1 min-w-0">
                 <span className="block text-sm truncate text-neutral-900 dark:text-neutral-100">
-                  {ch.title}
+                  {formatChapterLabelText(ch)}
                 </span>
                 <span className="text-xs text-neutral-400 dark:text-neutral-500">
                   {(ch.wordCount || 0).toLocaleString()} 字
@@ -108,7 +101,7 @@ export default function ChapterInfo({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(ch.chapterNumber, ch.title)}
+                    onClick={() => handleDelete(ch)}
                     disabled={deletingNum === ch.chapterNumber}
                     className="px-3 py-1 text-xs rounded transition-colors
                                bg-danger-light text-danger hover:opacity-80
