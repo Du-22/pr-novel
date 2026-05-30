@@ -5,6 +5,7 @@
 // ============================================
 
 import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { X, ChevronUp, ChevronDown } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -15,7 +16,12 @@ import { getAllNovels, getAllTags } from "../utils/novelsHelper";
 import { getRankingData } from "../utils/statsManager";
 
 export default function TagsPage() {
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [searchParams] = useSearchParams();
+  // 從 ?tag=xxx 或 ?tag=xxx&tag=yyy 初始勾選（支援多 tag）
+  const [selectedTags, setSelectedTags] = useState(() => {
+    const tags = searchParams.getAll("tag");
+    return tags.length > 0 ? tags : [];
+  });
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortBy, setSortBy] = useState(
     () => sessionStorage.getItem("tagsSortBy") || "new"

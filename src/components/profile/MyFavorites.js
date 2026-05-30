@@ -18,16 +18,19 @@ import {
 import { getAllNovels } from "../../utils/novelsHelper";
 import { decrementNovelFavorites } from "../../firebase/novels";
 import { ProfileListSkeleton } from "../Skeleton";
+import { useAuth } from "../../hooks/useAuth";
 
 export default function MyFavorites() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [favoriteNovels, setFavoriteNovels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState("grid");
 
   useEffect(() => {
-    loadFavorites();
-  }, []);
+    if (user) loadFavorites();
+    else setLoading(false);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadFavorites = async () => {
     setLoading(true);
@@ -74,6 +77,19 @@ export default function MyFavorites() {
       return dateString;
     }
   };
+
+  // 未登入訊息卡(比照 MyWorks)
+  if (!user) {
+    return (
+      <div className="p-12 text-center rounded-2xl border
+                      bg-white border-neutral-200
+                      dark:bg-neutral-900 dark:border-neutral-800">
+        <p className="text-neutral-600 dark:text-neutral-400">
+          請先登入才能查看我的收藏
+        </p>
+      </div>
+    );
+  }
 
   if (loading) return <ProfileListSkeleton count={4} />;
 

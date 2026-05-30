@@ -142,6 +142,7 @@ export default function NovelDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isFavorited, setIsFavorited] = useState(false);
   const [similarNovels, setSimilarNovels] = useState([]);
+  const [sameAuthorNovels, setSameAuthorNovels] = useState([]);
   const [readChapters, setReadChapters] = useState([]);
   const [lastChapter, setLastChapter] = useState(null);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
@@ -170,7 +171,13 @@ export default function NovelDetailPage() {
     setNovel(foundNovel);
 
     loadChapters(foundNovel);
-    loadSimilarNovels(foundNovel, allNovels);
+    // 先算同作者,把這些 id 傳給「你可能也喜歡」排除,避免兩區塊撞書
+    const sameAuthor = loadSameAuthorNovels(foundNovel, allNovels);
+    loadSimilarNovels(
+      foundNovel,
+      allNovels,
+      sameAuthor.map((n) => n.id)
+    );
 
     const { readChapters: readChs, lastChapter: lastCh } = await getNovelReadData(id);
     setReadChapters(readChs);
@@ -236,21 +243,55 @@ export default function NovelDetailPage() {
     }
   };
 
-  const loadSimilarNovels = (currentNovel, allNovels) => {
-    const tag = currentNovel.tags[0];
-    let similar = getNovelsByTag(allNovels, tag).filter((n) => n.id !== currentNovel.id);
-
-    if (similar.length < 3 && currentNovel.tags.length > 1) {
-      const moreNovels = getNovelsByTag(allNovels, currentNovel.tags[1]).filter(
-        (n) => n.id !== currentNovel.id && !similar.includes(n)
-      );
-      similar = [...similar, ...moreNovels];
+  // 同作者作品:依 novel.author(真實作者名)比對,不是 authorUid(上傳者)
+  // 依 createdAt 倒序最新最左,最多 3 本。回傳結果方便給「你可能也喜歡」排除用
+  const loadSameAuthorNovels = (currentNovel, allNovels) => {
+    if (!currentNovel.author) {
+      setSameAuthorNovels([]);
+      return [];
     }
+    const sameAuthor = allNovels
+      .filter(
+        (n) => n.id !== currentNovel.id && n.author === currentNovel.author
+      )
+      .sort((a, b) => {
+        const toMs = (val) => {
+          if (!val) return 0;
+          if (typeof val.toDate === "function") return val.toDate().getTime();
+          return new Date(val).getTime();
+        };
+        return toMs(b.createdAt) - toMs(a.createdAt);
+      })
+      .slice(0, 3);
+    setSameAuthorNovels(sameAuthor);
+    return sameAuthor;
+  };
 
-    setSimilarNovels(similar.slice(0, 3));
+  // 你可能也喜歡:按「共同 tag 數」降序排,取前 3 本。
+  // 排除自己 + 已在同作者區塊出現的書(避免兩個區塊撞書)。
+  // 至少要有 1 個共同 tag 才入選(零共同 tag 不算「相似」)。
+  const loadSimilarNovels = (currentNovel, allNovels, excludeIds = []) => {
+    const currentTags = new Set(currentNovel.tags || []);
+    const excludeSet = new Set([currentNovel.id, ...excludeIds]);
+
+    const scored = allNovels
+      .filter((n) => !excludeSet.has(n.id))
+      .map((n) => ({
+        novel: n,
+        score: (n.tags || []).filter((t) => currentTags.has(t)).length,
+      }))
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    setSimilarNovels(scored.slice(0, 3).map((item) => item.novel));
   };
 
   const toggleFavorite = async () => {
+    // 未登入直接跳到登入頁
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     if (isFavorited) {
       await removeFavorite(id);
       decrementNovelFavorites(id).catch(() => {});
@@ -374,17 +415,18 @@ export default function NovelDetailPage() {
 
             {/* 資訊 */}
             <div className="flex flex-col gap-4">
-              {/* 標籤 */}
+              {/* 標籤(可點,跳到標籤篩選頁) */}
               <div className="flex flex-wrap gap-2">
                 {novel.tags.map((tag) => (
-                  <span
+                  <Link
                     key={tag}
-                    className="px-2.5 py-0.5 text-xs rounded-full
-                               bg-neutral-100 text-neutral-700
-                               dark:bg-neutral-800 dark:text-neutral-300"
+                    to={`/tags?tag=${encodeURIComponent(tag)}`}
+                    className="px-2.5 py-0.5 text-xs rounded-full transition-colors
+                               bg-neutral-100 text-neutral-700 hover:bg-primary/10 hover:text-primary
+                               dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-primary/20 dark:hover:text-primary-light"
                   >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
 
@@ -658,6 +700,21 @@ export default function NovelDetailPage() {
           onRate={handleRate}
           submitting={ratingSubmitting}
         />
+
+        {/* ========== 同作者作品 ========== */}
+        {sameAuthorNovels.length > 0 && (
+          <section>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-4
+                           text-neutral-900 dark:text-neutral-100">
+              同作者作品
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {sameAuthorNovels.map((n) => (
+                <NovelCard key={n.id} novel={n} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* ========== 你可能也喜歡 ========== */}
         {similarNovels.length > 0 && (
