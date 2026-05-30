@@ -41,8 +41,8 @@ const CONFIGS = {
     centerGap: 130,
     spineGap: 48,
     zStep: 80,
-    spineWidth: 38,
-    spineFontSize: 12,
+    spineWidth: 42,
+    spineFontSize: 15,
     bookWidth: 170,
     thickness: 22,
     centerTilt: 18,
@@ -54,8 +54,8 @@ const CONFIGS = {
     centerGap: 180,
     spineGap: 60,
     zStep: 100,
-    spineWidth: 45,
-    spineFontSize: 14,
+    spineWidth: 50,
+    spineFontSize: 18,
     bookWidth: 215,
     thickness: 28,
     centerTilt: 20,
@@ -67,8 +67,8 @@ const CONFIGS = {
     centerGap: 220,
     spineGap: 70,
     zStep: 120,
-    spineWidth: 50,
-    spineFontSize: 15,
+    spineWidth: 56,
+    spineFontSize: 20,
     bookWidth: 250,
     thickness: 30,
     centerTilt: 20,
@@ -262,12 +262,29 @@ const CoverFlowShelf = ({ books = [], initialIndex }) => {
                 }}
                 onClick={() => handleBookClick(book, state)}
               >
-                {/* mode-spine: 側邊書脊卡(2D) */}
+                {/* mode-spine: 側邊書脊卡(2D)
+                    動態縮字級:書名越長字級越小,完整顯示且不爆出容器 */}
                 <div
                   className="cf-mode-spine"
                   style={{ background: gradient }}
                 >
-                  <span className="cf-spine-title">{book.title}</span>
+                  <span
+                    className="cf-spine-title"
+                    style={{
+                      fontSize: `${
+                        config.spineFontSize *
+                        (book.title.length <= 10
+                          ? 1
+                          : book.title.length <= 14
+                          ? 0.85
+                          : book.title.length <= 18
+                          ? 0.7
+                          : 0.6)
+                      }px`,
+                    }}
+                  >
+                    {book.title}
+                  </span>
                 </div>
 
                 {/* mode-3d: 中央 3D 書(6 個面) */}

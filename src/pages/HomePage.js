@@ -43,9 +43,9 @@ const HomePage = () => {
     return getAllNovels();
   }, []);
 
-  // ========== 本期強推:每週隨機 5 本 ==========
+  // ========== 本期強推:每週隨機 8 本 ==========
   const featuredNovels = useMemo(() => {
-    return getWeeklyRandomNovels(allNovels, 5);
+    return getWeeklyRandomNovels(allNovels, 8);
   }, [allNovels]);
 
   // ========== 隨機標籤區:每次開網頁都不同 ==========
