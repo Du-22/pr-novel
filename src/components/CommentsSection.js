@@ -130,7 +130,11 @@ export default function CommentsSection({
   const chapterTitleMap = useMemo(() => {
     const map = {};
     chapters.forEach((c) => {
-      map[c.chapterNumber] = c.title;
+      const label = c.isSpecial
+        ? c.label || `第${c.chapterNumber}章`
+        : `第${c.chapterNumber}章`;
+      const title = c.title && c.title !== label ? ` - ${c.title}` : "";
+      map[c.chapterNumber] = `${label}${title}`;
     });
     return map;
   }, [chapters]);

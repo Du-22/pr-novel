@@ -10,8 +10,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { getChapter, updateChapter } from "../firebase/chapters";
 import { getNovelById } from "../firebase/novels";
-import { doc, updateDoc, getDoc } from "firebase/firestore";
-import { db } from "../firebase/config";
 import { useAuth } from "../hooks/useAuth";
 
 const INPUT_CLASS =
@@ -99,25 +97,10 @@ export default function EditChapterPage() {
     setError("");
 
     try {
-      const wordCount = content.trim().length;
-
       await updateChapter(id, chNum, {
         title: title.trim(),
         content: content.trim(),
-        wordCount,
       });
-
-      const novelRef = doc(db, "novels", id);
-      const novelSnap = await getDoc(novelRef);
-      if (novelSnap.exists()) {
-        const chapters = novelSnap.data().chapters || [];
-        const updated = chapters.map((ch) =>
-          ch.chapterNumber === chNum
-            ? { ...ch, title: title.trim(), wordCount }
-            : ch
-        );
-        await updateDoc(novelRef, { chapters: updated });
-      }
 
       setOriginalTitle(title.trim());
       setOriginalContent(content.trim());

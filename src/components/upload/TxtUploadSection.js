@@ -35,8 +35,8 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
   const handleTxtUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.name.endsWith(".txt")) {
-      onError("請上傳 .txt 檔案");
+    if (!/\.(txt|md)$/i.test(file.name)) {
+      onError("請上傳 .txt 或 .md 檔案");
       return;
     }
 
@@ -118,7 +118,7 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
         <div>
           <input
             type="file"
-            accept=".txt"
+            accept=".txt,.md,text/plain,text/markdown"
             onChange={handleTxtUpload}
             className="block w-full text-sm cursor-pointer
                        text-neutral-500 dark:text-neutral-400
@@ -127,7 +127,7 @@ export default function TxtUploadSection({ onChaptersChange, onError }) {
                        file:bg-primary file:text-white hover:file:bg-primary-dark"
           />
           <p className="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
-            支援 UTF-8 編碼的 .txt 檔案
+            支援 UTF-8 編碼的 .txt / .md 檔案
           </p>
         </div>
       )}

@@ -66,11 +66,6 @@ export default function MyWorks() {
     }
   };
 
-  const getTotalWords = (chapters) => {
-    if (!chapters || chapters.length === 0) return 0;
-    return chapters.reduce((sum, ch) => sum + (ch.wordCount || 0), 0);
-  };
-
   const formatDate = (val) => {
     if (!val) return "";
     try {
@@ -238,13 +233,13 @@ export default function MyWorks() {
                                   text-neutral-600 dark:text-neutral-400">
                     <div>
                       <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                        {novel.chapters?.length || 0}
+                        {novel.chapterCount || 0}
                       </span>{" "}
                       章節
                     </div>
                     <div>
                       <span className="font-semibold text-neutral-900 dark:text-neutral-100">
-                        {getTotalWords(novel.chapters).toLocaleString()}
+                        {(novel.totalWordCount || 0).toLocaleString()}
                       </span>{" "}
                       字
                     </div>

@@ -24,13 +24,28 @@ export const getUploadedNovels = () => {
   }
 };
 
+// 章節內文已改存 Storage，localStorage 只放 metadata，避免超出 5MB quota
+const stripChapterContent = (novelData) => {
+  const { chapters, ...rest } = novelData;
+  return {
+    ...rest,
+    chapters: (chapters || []).map((ch) => ({
+      chapterNumber: ch.chapterNumber,
+      title: ch.title,
+      wordCount: ch.wordCount || ch.content?.length || 0,
+      isSpecial: ch.isSpecial || false,
+      label: ch.label || null,
+    })),
+  };
+};
+
 export const saveUploadedNovel = (novelData) => {
   const existingNovels = getUploadedNovels();
   const newId = `uploaded-${Date.now()}`;
 
   const newNovel = {
     id: newId,
-    ...novelData,
+    ...stripChapterContent(novelData),
     firestoreId: null, // 尚未同步到 Firestore
     createdAt: new Date().toISOString(),
     stats: { views: 0, favorites: 0 },
