@@ -197,12 +197,24 @@ function parseChapterTitleNoMd(trimmed, extraCount, allowLooseNumDot) {
   const fallbackTitle = trimmed;
 
   // 把匹配結果包成統一處理：
+  //   - chapterNumber === 0 → 序章類（與序章 keyword 行為一致）
+  //   - chapterNumber < 0 → 視為非章節
   //   - 副標為特殊關鍵字時 → 轉特殊章節
-  //   - chapterNumber < 1 → 視為非章節（一般章節最小是 1，0 號保留給序章）
   const buildRegular = (numStr, rawSubtitle) => {
     const chapterNumber = parseInt(numStr, 10);
-    if (chapterNumber < 1) return null;
     const subtitle = (rawSubtitle || "").trim();
+
+    // 「第0章 X」這類寫法（作者明確用編號 0 表示序章）→ 歸為序章
+    if (chapterNumber === 0) {
+      return {
+        chapterNumber: PRE_CHAPTER_NUMBER,
+        title: subtitle || fallbackTitle,
+        isSpecial: true,
+      };
+    }
+
+    if (chapterNumber < 1) return null;
+
     const override = tryOverrideAsSpecial(subtitle, extraCount);
     if (override) return override;
     return {
@@ -226,16 +238,9 @@ function parseChapterTitleNoMd(trimmed, extraCount, allowLooseNumDot) {
   );
   if (chineseMatch) {
     const num = parseChineseNumber(chineseMatch[1]);
-    if (num !== null && num >= 1) {
-      const subtitle = chineseMatch[2].trim();
-      const override = tryOverrideAsSpecial(subtitle, extraCount);
-      if (override) return override;
-      return {
-        chapterNumber: num,
-        title: subtitle || fallbackTitle,
-        isSpecial: false,
-        label: null,
-      };
+    if (num !== null) {
+      const result = buildRegular(String(num), chineseMatch[2]);
+      if (result) return result;
     }
   }
 
