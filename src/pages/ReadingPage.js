@@ -25,6 +25,14 @@ import { formatChapterLabel } from "../utils/chapterLabel";
 
 const CHARS_PER_PAGE = 3000;
 
+// 字級三段:小 / 中 / 大
+const FONT_SIZES = {
+  small: "1rem",
+  medium: "1.15rem",
+  large: "1.4rem",
+};
+const FONT_SIZE_KEY = "pr-novel-reading-size";
+
 function ReadingPage() {
   const { id, chapter } = useParams();
   const navigate = useNavigate();
@@ -37,8 +45,21 @@ function ReadingPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem(FONT_SIZE_KEY);
+    return saved && FONT_SIZES[saved] ? saved : "medium";
+  });
 
   const chapterNumber = parseInt(chapter);
+
+  const changeFontSize = (size) => {
+    setFontSize(size);
+    try {
+      localStorage.setItem(FONT_SIZE_KEY, size);
+    } catch (e) {
+      console.warn("無法儲存字級偏好:", e.message);
+    }
+  };
 
   // ========== 載入小說資料 ==========
   useEffect(() => {
@@ -202,6 +223,30 @@ function ReadingPage() {
             <span>{novel.author}</span>
             <span className="text-neutral-300 dark:text-neutral-700">·</span>
             <span>{currentChapter.wordCount} 字</span>
+            <span className="text-neutral-300 dark:text-neutral-700">·</span>
+            {/* 字級切換 segmented control */}
+            <div className="inline-flex gap-0.5 p-0.5 rounded-md
+                            bg-neutral-100 dark:bg-neutral-800">
+              {[
+                { key: "small", label: "小", cls: "text-xs" },
+                { key: "medium", label: "中", cls: "text-sm" },
+                { key: "large", label: "大", cls: "text-base" },
+              ].map(({ key, label, cls }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => changeFontSize(key)}
+                  aria-label={`字級 ${label}`}
+                  className={`px-2 py-0.5 rounded font-medium transition-all ${cls} ${
+                    fontSize === key
+                      ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                      : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           {totalPages > 1 && (
             <div className="text-center text-xs mt-2 text-neutral-400 dark:text-neutral-500">
@@ -216,8 +261,9 @@ function ReadingPage() {
                       max-w-[680px] md:max-w-[860px] lg:max-w-[960px]">
         <article
           ref={contentRef}
-          className="font-heading font-medium text-[1.1rem] sm:text-[1.15rem] leading-[1.85]
+          className="font-heading font-medium leading-[1.85]
                      text-neutral-900 dark:text-neutral-100"
+          style={{ fontSize: FONT_SIZES[fontSize] }}
         >
           {paragraphs.map((paragraph, index) => (
             <p key={index} className="mb-6 break-words indent-8">
