@@ -32,6 +32,19 @@ import {
 
 const UPLOAD_CONCURRENCY = 10;
 
+// ========== Chapter Firestore doc id helper ==========
+// 單卷小說(volumeNumber = null/undefined):doc id = String(chapterNumber) 維持相容
+// 分卷小說:doc id = `v{vol}-{ch}` 避免跨卷 chapterNumber 撞號
+//
+// 範例:
+//   chapterDocId(null, 5)      → "5"        (flat 模式)
+//   chapterDocId(1, 0)         → "v1-0"     (分卷模式卷 1 序章)
+//   chapterDocId(2, 0)         → "v2-0"     (分卷模式卷 2 序章 — 不會撞 v1-0)
+export const chapterDocId = (volumeNumber, chapterNumber) =>
+  volumeNumber != null
+    ? `v${volumeNumber}-${chapterNumber}`
+    : String(chapterNumber);
+
 // 在 novel 主 doc 上維護的彙總欄位（列表頁不用查子集合就能顯示）
 const updateNovelChapterStats = async (novelId, chapterCount, totalWordCount) => {
   await updateDoc(doc(db, "novels", novelId), {
@@ -64,9 +77,11 @@ export const uploadChapters = async (novelId, chapters, onProgress, options = {}
     async (chapter) => {
       if (failed) return null;
       try {
+        // Storage 路徑也要跟 doc id 對齊,卷 1/卷 2 序章才不會撞檔
+        const storagePath = chapterDocId(volumeNumber, chapter.chapterNumber);
         const contentUrl = await uploadChapterContent(
           novelId,
-          chapter.chapterNumber,
+          storagePath,
           chapter.content || ""
         );
         return { ...chapter, contentUrl };
@@ -98,7 +113,7 @@ export const uploadChapters = async (novelId, chapters, onProgress, options = {}
           "novels",
           novelId,
           "chapters",
-          String(chapter.chapterNumber)
+          chapterDocId(volumeNumber, chapter.chapterNumber)
         );
         const data = {
           chapterNumber: chapter.chapterNumber,
@@ -141,8 +156,14 @@ export const uploadChapters = async (novelId, chapters, onProgress, options = {}
  * 從子集合拿 metadata → 從 Storage 拿 content
  * @returns {Promise<object|null>} - { chapterNumber, title, isSpecial, label, content, wordCount } 或 null
  */
-export const getChapter = async (novelId, chapterNumber) => {
-  const docRef = doc(db, "novels", novelId, "chapters", String(chapterNumber));
+export const getChapter = async (novelId, chapterNumber, volumeNumber = null) => {
+  const docRef = doc(
+    db,
+    "novels",
+    novelId,
+    "chapters",
+    chapterDocId(volumeNumber, chapterNumber)
+  );
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) return null;
 
@@ -172,11 +193,19 @@ export const getChaptersMetadata = async (novelId) => {
 // ========== 新增單一章節 ==========
 
 export const addChapter = async (novelId, chapterData) => {
-  const { chapterNumber, content, title, isSpecial, label } = chapterData;
+  const {
+    chapterNumber,
+    content,
+    title,
+    isSpecial,
+    label,
+    volumeNumber = null,
+  } = chapterData;
   const wordCount = (content || "").length;
+  const storagePath = chapterDocId(volumeNumber, chapterNumber);
   const contentUrl = await uploadChapterContent(
     novelId,
-    chapterNumber,
+    storagePath,
     content || ""
   );
   const chapterRef = doc(
@@ -184,9 +213,9 @@ export const addChapter = async (novelId, chapterData) => {
     "novels",
     novelId,
     "chapters",
-    String(chapterNumber)
+    storagePath
   );
-  await setDoc(chapterRef, {
+  const data = {
     chapterNumber,
     title: title || "",
     wordCount,
@@ -195,7 +224,11 @@ export const addChapter = async (novelId, chapterData) => {
     contentUrl,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-  });
+  };
+  if (volumeNumber != null) {
+    data.volumeNumber = volumeNumber;
+  }
+  await setDoc(chapterRef, data);
 
   // 主 doc 彙總 +1 章 / + wordCount 字
   await updateDoc(doc(db, "novels", novelId), {
@@ -211,13 +244,14 @@ export const addChapter = async (novelId, chapterData) => {
 /**
  * 更新章節。若 data.content 存在則同時更新 Storage；其餘欄位更新 Firestore
  */
-export const updateChapter = async (novelId, chapterNumber, data) => {
+export const updateChapter = async (novelId, chapterNumber, data, volumeNumber = null) => {
+  const storagePath = chapterDocId(volumeNumber, chapterNumber);
   const chapterRef = doc(
     db,
     "novels",
     novelId,
     "chapters",
-    String(chapterNumber)
+    storagePath
   );
 
   const update = { ...data, updatedAt: serverTimestamp() };
@@ -230,7 +264,7 @@ export const updateChapter = async (novelId, chapterNumber, data) => {
     const newWordCount = data.content.length;
     wordCountDiff = newWordCount - oldWordCount;
 
-    await uploadChapterContent(novelId, chapterNumber, data.content);
+    await uploadChapterContent(novelId, storagePath, data.content);
     update.wordCount = newWordCount;
     delete update.content; // content 不存 Firestore
   }
@@ -248,20 +282,20 @@ export const updateChapter = async (novelId, chapterNumber, data) => {
 
 // ========== 刪除章節 ==========
 
-export const deleteChapter = async (novelId, chapterNumber) => {
+export const deleteChapter = async (novelId, chapterNumber, volumeNumber = null) => {
   const chapterRef = doc(
     db,
     "novels",
     novelId,
     "chapters",
-    String(chapterNumber)
+    chapterDocId(volumeNumber, chapterNumber)
   );
 
   // 先抓 wordCount 才能反向 decrement 主 doc
   const snap = await getDoc(chapterRef);
   const wordCount = snap.exists() ? snap.data().wordCount || 0 : 0;
 
-  await deleteChapterContent(novelId, chapterNumber);
+  await deleteChapterContent(novelId, chapterDocId(volumeNumber, chapterNumber));
   await deleteDoc(chapterRef);
 
   await updateDoc(doc(db, "novels", novelId), {

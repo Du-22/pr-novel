@@ -3,6 +3,10 @@
 // 路徑: src/pages/ReadingPage.js
 // 用途: 小說章節閱讀頁 — 沉浸式閱讀模式 (紙白底 / 夜間深底,
 //       內文宋體 + drop cap + 1.85 行距,800px 最大寬度,不放 Footer 維持沉浸)
+//
+// 支援兩種路由:
+//   1. /novel/:id/read/:chapter        — 單卷小說
+//   2. /novel/:id/read/:vol/:ch        — 分卷小說(URL 多帶卷號)
 // ============================================
 
 import React, { useState, useEffect, useRef } from "react";
@@ -33,10 +37,33 @@ const FONT_SIZES = {
 };
 const FONT_SIZE_KEY = "pr-novel-reading-size";
 
+// 工具:依分卷模式產生閱讀頁 URL
+function buildReadPath(novelId, chapter) {
+  return chapter.volumeNumber != null
+    ? `/novel/${novelId}/read/${chapter.volumeNumber}/${chapter.chapterNumber}`
+    : `/novel/${novelId}/read/${chapter.chapterNumber}`;
+}
+
+// 工具:章節排序(分卷小說要先 by volumeNumber,再 by chapterNumber)
+function sortChapters(chapters) {
+  return [...chapters].sort((a, b) => {
+    const aVol = a.volumeNumber ?? 0;
+    const bVol = b.volumeNumber ?? 0;
+    if (aVol !== bVol) return aVol - bVol;
+    return a.chapterNumber - b.chapterNumber;
+  });
+}
+
 function ReadingPage() {
-  const { id, chapter } = useParams();
+  const params = useParams();
   const navigate = useNavigate();
   const contentRef = useRef(null);
+
+  const { id } = params;
+  // 判斷路由型態:有 vol 參數就是分卷,否則就是單卷
+  const isVolumed = params.vol !== undefined;
+  const volumeNumber = isVolumed ? parseInt(params.vol, 10) : null;
+  const chapterNumber = parseInt(isVolumed ? params.ch : params.chapter, 10);
 
   const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
@@ -49,8 +76,6 @@ function ReadingPage() {
     const saved = localStorage.getItem(FONT_SIZE_KEY);
     return saved && FONT_SIZES[saved] ? saved : "medium";
   });
-
-  const chapterNumber = parseInt(chapter);
 
   const changeFontSize = (size) => {
     setFontSize(size);
@@ -75,16 +100,16 @@ function ReadingPage() {
         }
         setNovel(foundNovel);
 
-        // 章節列表從子集合抓 metadata
+        // 章節列表從子集合抓 metadata,client 端排序(分卷要 by vol, ch)
         const chaptersMeta = await getChaptersMetadata(id);
         if (chaptersMeta.length === 0) {
           setError("此小說尚無章節");
           return;
         }
-        setChapters(chaptersMeta);
+        setChapters(sortChapters(chaptersMeta));
 
-        // 當前章節含內文（從 Storage fetch）
-        const currentChapterData = await getChapter(id, chapterNumber);
+        // 當前章節含內文(從 Storage fetch),分卷小說要帶 volumeNumber 才找得到對的 doc
+        const currentChapterData = await getChapter(id, chapterNumber, volumeNumber);
         if (!currentChapterData) {
           setError("找不到此章節");
           return;
@@ -115,17 +140,23 @@ function ReadingPage() {
     };
 
     loadNovel();
-  }, [id, chapterNumber]);
+  }, [id, chapterNumber, volumeNumber]);
 
   // ========== 同步當前頁碼:URL ?page= 與 readHistory.lastPage ==========
   // - 章節載入完成後 / 換頁時觸發
   // - URL 用 replaceState 不污染 history(返回鍵不會在頁碼間跳)
   // - currentPage === 1 時不寫 ?page=1(URL 保持乾淨)
+  // - 章節剛切換、舊 currentPage 還沒重置時要擋住,
+  //   否則會把 ?page=N 帶到新章節 URL
   useEffect(() => {
     if (!currentChapter || loading) return;
-    // 章節剛切換、舊 currentPage 還沒重置時要擋住,
-    // 否則會把 ?page=N 帶到新章節 URL
-    if (currentChapter.chapterNumber !== chapterNumber) return;
+    const loadedVol = currentChapter.volumeNumber ?? null;
+    if (
+      currentChapter.chapterNumber !== chapterNumber ||
+      loadedVol !== volumeNumber
+    ) {
+      return;
+    }
     const url = new URL(window.location.href);
     if (currentPage > 1) {
       url.searchParams.set("page", String(currentPage));
@@ -133,8 +164,17 @@ function ReadingPage() {
       url.searchParams.delete("page");
     }
     window.history.replaceState({}, "", url);
-    markChapterAsRead(id, chapterNumber, currentPage).catch(() => {});
-  }, [id, chapterNumber, currentPage, currentChapter, loading]);
+    markChapterAsRead(id, chapterNumber, currentPage, volumeNumber).catch(
+      () => {}
+    );
+  }, [
+    id,
+    chapterNumber,
+    volumeNumber,
+    currentPage,
+    currentChapter,
+    loading,
+  ]);
 
   // ========== 取得當前頁內容 ==========
   const getCurrentPageContent = () => {
@@ -154,11 +194,15 @@ function ReadingPage() {
     setCurrentPage(newPage);
   };
 
+  // ========== 上一章 / 下一章(跨卷自動接續) ==========
   const handleChapterChange = (direction) => {
+    // 用 (volumeNumber, chapterNumber) 兩個鍵找當前位置;單卷只用 chapterNumber
     const currentIndex = chapters.findIndex(
-      (ch) => ch.chapterNumber === chapterNumber
+      (ch) =>
+        ch.chapterNumber === chapterNumber &&
+        (ch.volumeNumber ?? null) === volumeNumber
     );
-    let newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
+    const newIndex = direction === "prev" ? currentIndex - 1 : currentIndex + 1;
 
     if (newIndex < 0 || newIndex >= chapters.length) {
       alert(direction === "prev" ? "已經是第一章了" : "已經是最後一章了");
@@ -166,7 +210,7 @@ function ReadingPage() {
     }
 
     const newChapter = chapters[newIndex];
-    navigate(`/novel/${id}/read/${newChapter.chapterNumber}`);
+    navigate(buildReadPath(id, newChapter));
     window.scrollTo({ top: 0 });
   };
 
@@ -206,7 +250,9 @@ function ReadingPage() {
 
   // ========== 主要內容 ==========
   const currentChapterIndex = chapters.findIndex(
-    (ch) => ch.chapterNumber === chapterNumber
+    (ch) =>
+      ch.chapterNumber === chapterNumber &&
+      (ch.volumeNumber ?? null) === volumeNumber
   );
   const hasPrevChapter = currentChapterIndex > 0;
   const hasNextChapter = currentChapterIndex < chapters.length - 1;

@@ -54,8 +54,10 @@ function App() {
         {/* 小說詳情頁 */}
         <Route path="/novel/:id" element={<NovelDetailPage />} />
 
-        {/* 閱讀頁 (待開發) */}
+        {/* 閱讀頁 — 單卷小說 */}
         <Route path="/novel/:id/read/:chapter" element={<ReadingPage />} />
+        {/* 閱讀頁 — 分卷小說(URL 多帶卷號)*/}
+        <Route path="/novel/:id/read/:vol/:ch" element={<ReadingPage />} />
 
         {/* 排行榜頁 */}
         <Route path="/ranking" element={<RankingPage />} />
