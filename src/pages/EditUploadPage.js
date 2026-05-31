@@ -13,6 +13,7 @@ import CoverUploadSection from "../components/upload/CoverUploadSection";
 import ChapterInfo from "../components/upload/ChapterInfo";
 import EditNotice from "../components/upload/EditNotice";
 import AddChapterSection from "../components/upload/AddChapterSection";
+import VolumeManagementSection from "../components/upload/VolumeManagementSection";
 import { getNovelById, updateNovel } from "../firebase/novels";
 import { getChaptersMetadata } from "../firebase/chapters";
 import { useAuth } from "../hooks/useAuth";
@@ -32,6 +33,9 @@ export default function EditUploadPage() {
   const [coverImage, setCoverImage] = useState("");
   const [status, setStatus] = useState("serializing");
   const [chapters, setChapters] = useState([]);
+  // 分卷小說才有的兩個 state
+  const [volumeMode, setVolumeMode] = useState("flat");
+  const [volumes, setVolumes] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -62,6 +66,8 @@ export default function EditUploadPage() {
       setTags(tagsString);
       setCoverImage(novel.coverImage);
       setStatus(novel.status || "serializing");
+      setVolumeMode(novel.volumeMode || "flat");
+      setVolumes(novel.volumes || []);
 
       // 章節列表從子集合抓
       const chaptersMeta = await getChaptersMetadata(id);
@@ -261,13 +267,27 @@ export default function EditUploadPage() {
             novelId={id}
             isNewFormat={true}
             onChapterDeleted={setChapters}
+            volumes={volumeMode === "volumed" ? volumes : null}
           />
 
-          <AddChapterSection
-            novelId={id}
-            existingChapters={chapters}
-            onChaptersUpdated={setChapters}
-          />
+          {/* 分卷小說走 VolumeManagementSection(卷列表 + 新增卷),
+              單卷小說走原本的 AddChapterSection */}
+          {volumeMode === "volumed" ? (
+            <VolumeManagementSection
+              novelId={id}
+              userId={user?.uid}
+              volumes={volumes}
+              chapters={chapters}
+              onVolumesUpdated={setVolumes}
+              onChaptersUpdated={setChapters}
+            />
+          ) : (
+            <AddChapterSection
+              novelId={id}
+              existingChapters={chapters}
+              onChaptersUpdated={setChapters}
+            />
+          )}
 
           <div className="flex gap-3 sm:gap-4">
             <button

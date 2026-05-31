@@ -80,7 +80,10 @@ function App() {
         {/* 我的上傳管理頁 */}
         <Route path="/my-uploads" element={<MyUploadsPage />} />
         <Route path="/my-uploads/edit/:id" element={<EditUploadPage />} />
+        {/* 編輯章節 — 單卷 */}
         <Route path="/my-uploads/edit/:id/chapter/:chapterNumber" element={<EditChapterPage />} />
+        {/* 編輯章節 — 分卷 */}
+        <Route path="/my-uploads/edit/:id/v/:vol/chapter/:ch" element={<EditChapterPage />} />
 
         {/* 個人中心頁 */}
         <Route path="/profile" element={<ProfilePage />} />

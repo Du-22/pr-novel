@@ -174,6 +174,14 @@ export default function MyUploadsPage() {
                       {/* 統計資訊 */}
                       <div className="flex flex-wrap gap-3 sm:gap-4 mb-3 text-xs sm:text-sm
                                       text-neutral-600 dark:text-neutral-400">
+                        {novel.volumeMode === "volumed" && (
+                          <div>
+                            <span className="font-semibold text-neutral-900 dark:text-neutral-100">
+                              {(novel.volumes || []).length}
+                            </span>{" "}
+                            卷
+                          </div>
+                        )}
                         <div>
                           <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                             {novel.chapterCount || 0}

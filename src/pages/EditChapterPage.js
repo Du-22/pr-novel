@@ -19,11 +19,17 @@ const INPUT_CLASS =
   "dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700";
 
 export default function EditChapterPage() {
-  const { id, chapterNumber } = useParams();
+  const params = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const chNum = parseInt(chapterNumber);
+  const { id } = params;
+  // 支援雙路由:
+  //   /my-uploads/edit/:id/chapter/:chapterNumber       (單卷)
+  //   /my-uploads/edit/:id/v/:vol/chapter/:ch           (分卷)
+  const isVolumed = params.vol !== undefined;
+  const volumeNumber = isVolumed ? parseInt(params.vol, 10) : null;
+  const chNum = parseInt(isVolumed ? params.ch : params.chapterNumber);
 
   const [novelTitle, setNovelTitle] = useState("");
   const [title, setTitle] = useState("");
@@ -50,7 +56,7 @@ export default function EditChapterPage() {
         return;
       }
 
-      const chapter = await getChapter(id, chNum);
+      const chapter = await getChapter(id, chNum, volumeNumber);
       if (!chapter) {
         alert("找不到此章節");
         navigate(`/my-uploads/edit/${id}`);
@@ -66,7 +72,7 @@ export default function EditChapterPage() {
     };
 
     if (user !== undefined) load();
-  }, [id, chNum, user, navigate]);
+  }, [id, chNum, volumeNumber, user, navigate]);
 
   useEffect(() => {
     setHasChanges(title !== originalTitle || content !== originalContent);
@@ -97,10 +103,15 @@ export default function EditChapterPage() {
     setError("");
 
     try {
-      await updateChapter(id, chNum, {
-        title: title.trim(),
-        content: content.trim(),
-      });
+      await updateChapter(
+        id,
+        chNum,
+        {
+          title: title.trim(),
+          content: content.trim(),
+        },
+        volumeNumber
+      );
 
       setOriginalTitle(title.trim());
       setOriginalContent(content.trim());
@@ -151,7 +162,7 @@ export default function EditChapterPage() {
         <div className="mb-6 p-4 rounded-lg text-sm font-medium border
                         bg-primary/10 text-primary border-primary/20
                         dark:bg-primary/15 dark:text-primary-light dark:border-primary/30">
-          正在編輯:第 {chNum} 章
+          正在編輯:{isVolumed ? `卷 ${volumeNumber}・` : ""}第 {chNum} 章
         </div>
 
         {error && (
