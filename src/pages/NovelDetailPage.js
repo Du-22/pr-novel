@@ -37,7 +37,32 @@ import { getUserRating, submitRating, getRatingStats } from "../firebase/ratings
 
 const DEFAULT_COVER_PATH = "/images/covers/default-cover.png";
 
-// ========== 章節分組 helper ==========
+// ========== 分卷模式專用：依 volumeNumber 分組 ==========
+// 每組標題用 novel.volumes[].title(找不到時 fallback「卷 N」)
+function groupChaptersByVolume(chapters, volumes) {
+  if (!chapters || chapters.length === 0) return [];
+
+  const byVol = new Map();
+  chapters.forEach((ch) => {
+    // 章節沒 volumeNumber 時當卷 1(防呆,正常分卷小說每章都會有)
+    const vol = ch.volumeNumber ?? 1;
+    if (!byVol.has(vol)) byVol.set(vol, []);
+    byVol.get(vol).push(ch);
+  });
+
+  const sortedVols = [...byVol.keys()].sort((a, b) => a - b);
+  return sortedVols.map((vol) => {
+    const volInfo = volumes?.find((v) => v.volumeNumber === vol);
+    const title = volInfo?.title || `卷 ${vol}`;
+    return {
+      key: `vol-${vol}`,
+      label: title,
+      chapters: byVol.get(vol).sort((a, b) => a.chapterNumber - b.chapterNumber),
+    };
+  });
+}
+
+// ========== 單卷(flat)模式章節分組 helper ==========
 // 依總章數動態決定分組大小；特別章節（cn > maxMain）獨立成一組「特別章節」放最後
 function groupChapters(chapters) {
   if (!chapters || chapters.length === 0) return [];
@@ -331,7 +356,13 @@ export default function NovelDetailPage() {
   const isChapterRead = (chapterNumber) => readChapters.includes(chapterNumber);
 
   // ========== 章節分組 + 搜尋 ==========
-  const chapterGroups = useMemo(() => groupChapters(chapters), [chapters]);
+  const chapterGroups = useMemo(() => {
+    // 分卷小說:依卷分組;單卷小說:沿用既有「20/50/100 章一組」邏輯
+    if (novel?.volumeMode === "volumed") {
+      return groupChaptersByVolume(chapters, novel.volumes);
+    }
+    return groupChapters(chapters);
+  }, [chapters, novel?.volumeMode, novel?.volumes]);
 
   const filteredChapters = useMemo(() => {
     const q = chapterSearch.trim().toLowerCase();
