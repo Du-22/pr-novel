@@ -20,7 +20,7 @@ import { getAllNovels } from "../utils/novelsHelper";
 import { getTotalWordCount, formatWordCount } from "../utils/parser";
 import { formatChapterLabel, formatChapterLabelText } from "../utils/chapterLabel";
 import { getChaptersMetadata } from "../firebase/chapters";
-import { getNovelReadData } from "../utils/readHistoryManager";
+import { getNovelReadData, isChapterReadIn } from "../utils/readHistoryManager";
 import {
   incrementNovelViews,
   incrementNovelFavorites,
@@ -57,6 +57,7 @@ function groupChaptersByVolume(chapters, volumes) {
     return {
       key: `vol-${vol}`,
       label: title,
+      coverImage: volInfo?.coverImage || null, // 卷封面 thumbnail(沒就 null)
       chapters: byVol.get(vol).sort((a, b) => a.chapterNumber - b.chapterNumber),
     };
   });
@@ -120,14 +121,24 @@ function renderChapterLink(chapter, novelId, isChapterRead, inGroup = false) {
   const baseCls = inGroup
     ? "flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-primary/5 dark:hover:bg-primary/10"
     : "group flex items-center justify-between p-3 sm:p-4 rounded-lg border transition-all border-neutral-200 hover:border-primary hover:bg-primary/5 dark:border-neutral-800 dark:hover:border-primary-light dark:hover:bg-primary/10";
+  // 分卷章節走 /read/:vol/:ch,單卷沿用 /read/:ch
+  const readPath =
+    chapter.volumeNumber != null
+      ? `/novel/${novelId}/read/${chapter.volumeNumber}/${chapter.chapterNumber}`
+      : `/novel/${novelId}/read/${chapter.chapterNumber}`;
+  // key 也要含 volume 避免不同卷同 chapterNumber 撞 React key
+  const linkKey =
+    chapter.volumeNumber != null
+      ? `v${chapter.volumeNumber}-${chapter.chapterNumber}`
+      : String(chapter.chapterNumber);
   return (
     <Link
-      key={chapter.chapterNumber}
-      to={`/novel/${novelId}/read/${chapter.chapterNumber}`}
+      key={linkKey}
+      to={readPath}
       className={baseCls}
     >
       <div className="flex items-center gap-3 min-w-0">
-        {isChapterRead(chapter.chapterNumber) && (
+        {isChapterRead(chapter.chapterNumber, chapter.volumeNumber ?? null) && (
           <Check className="w-4 h-4 flex-shrink-0 text-primary dark:text-primary-light" />
         )}
         <span className="font-medium break-words transition-colors text-neutral-900 dark:text-neutral-100">
@@ -170,6 +181,7 @@ export default function NovelDetailPage() {
   const [readChapters, setReadChapters] = useState([]);
   const [lastChapter, setLastChapter] = useState(null);
   const [lastPage, setLastPage] = useState(null);
+  const [lastVolume, setLastVolume] = useState(null); // 分卷小說才有
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
   const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
   const [userRating, setUserRating] = useState(null);
@@ -204,10 +216,11 @@ export default function NovelDetailPage() {
       sameAuthor.map((n) => n.id)
     );
 
-    const { readChapters: readChs, lastChapter: lastCh, lastPage: lastPg } = await getNovelReadData(id);
+    const { readChapters: readChs, lastChapter: lastCh, lastPage: lastPg, lastVolume: lastVol } = await getNovelReadData(id);
     setReadChapters(readChs);
     setLastChapter(lastCh);
     setLastPage(lastPg);
+    setLastVolume(lastVol);
 
     const freshNovel = await fetchNovelStats(id);
     const baseViews = freshNovel?.stats?.views ?? foundNovel.stats?.views ?? 0;
@@ -331,29 +344,49 @@ export default function NovelDetailPage() {
     }
   };
 
+  // 找上次讀的章節:分卷模式靠 (lastVolume, lastChapter),單卷靠 lastChapter
+  const findLastChapter = () => {
+    if (!lastChapter) return null;
+    if (lastVolume != null) {
+      return chapters.find(
+        (c) => c.volumeNumber === lastVolume && c.chapterNumber === lastChapter
+      ) || null;
+    }
+    return chapters.find((c) => c.chapterNumber === lastChapter) || null;
+  };
+
   const startReading = () => {
     if (chapters.length === 0) return;
-    if (lastChapter) {
-      const chapterExists = chapters.find((c) => c.chapterNumber === lastChapter);
-      if (chapterExists) {
-        const base = `/novel/${id}/read/${lastChapter}`;
-        navigate(lastPage && lastPage > 1 ? `${base}?page=${lastPage}` : base);
-        return;
-      }
+    const target = findLastChapter();
+    if (target) {
+      const base =
+        target.volumeNumber != null
+          ? `/novel/${id}/read/${target.volumeNumber}/${target.chapterNumber}`
+          : `/novel/${id}/read/${target.chapterNumber}`;
+      navigate(lastPage && lastPage > 1 ? `${base}?page=${lastPage}` : base);
+      return;
     }
-    navigate(`/novel/${id}/read/${chapters[0].chapterNumber}`);
+    // 沒記錄 → 跳第一章(也要考慮分卷)
+    const first = chapters[0];
+    const firstPath =
+      first.volumeNumber != null
+        ? `/novel/${id}/read/${first.volumeNumber}/${first.chapterNumber}`
+        : `/novel/${id}/read/${first.chapterNumber}`;
+    navigate(firstPath);
   };
 
   const getReadButtonText = () => {
     if (lastChapter) {
-      const chapter = chapters.find((c) => c.chapterNumber === lastChapter);
+      const chapter = findLastChapter();
       if (chapter) return `繼續閱讀 (${formatChapterLabelText(chapter)})`;
       return `繼續閱讀 (第${lastChapter}章)`;
     }
     return "開始閱讀";
   };
 
-  const isChapterRead = (chapterNumber) => readChapters.includes(chapterNumber);
+  // 同時支援單卷(陣列)/ 分卷(物件)結構
+  const isChapterRead = (chapterNumber, volumeNumber = null) =>
+    isChapterReadIn(readChapters, chapterNumber, volumeNumber);
 
   // ========== 章節分組 + 搜尋 ==========
   const chapterGroups = useMemo(() => {
@@ -375,17 +408,22 @@ export default function NovelDetailPage() {
   }, [chapters, chapterSearch]);
 
   // 預設展開：第一組 + 含目前閱讀章節的那組
+  // 分卷小說要靠 (lastVolume, lastChapter) 才能準確定位
   useEffect(() => {
     if (chapterGroups.length === 0) return;
     const initial = new Set([chapterGroups[0].key]);
     if (lastChapter != null) {
       const currentGroup = chapterGroups.find((g) =>
-        g.chapters.some((c) => c.chapterNumber === lastChapter)
+        g.chapters.some((c) =>
+          lastVolume != null
+            ? c.volumeNumber === lastVolume && c.chapterNumber === lastChapter
+            : c.chapterNumber === lastChapter
+        )
       );
       if (currentGroup) initial.add(currentGroup.key);
     }
     setOpenGroups(initial);
-  }, [chapterGroups, lastChapter]);
+  }, [chapterGroups, lastChapter, lastVolume]);
 
   const toggleGroup = (key) => {
     setOpenGroups((prev) => {
@@ -678,7 +716,7 @@ export default function NovelDetailPage() {
               {chapterGroups.map((group) => {
                 const isOpen = openGroups.has(group.key);
                 const readInGroup = group.chapters.filter((c) =>
-                  isChapterRead(c.chapterNumber)
+                  isChapterRead(c.chapterNumber, c.volumeNumber ?? null)
                 ).length;
                 return (
                   <div
@@ -697,6 +735,15 @@ export default function NovelDetailPage() {
                           className={`w-4 h-4 flex-shrink-0 transition-transform text-neutral-500
                                       ${isOpen ? "" : "-rotate-90"}`}
                         />
+                        {/* 卷封面 thumbnail(只在分卷模式 + 該卷有上傳封面時顯示)*/}
+                        {group.coverImage && (
+                          <img
+                            src={group.coverImage}
+                            alt={group.label}
+                            className="w-10 h-14 object-cover rounded flex-shrink-0
+                                       border border-neutral-200 dark:border-neutral-700"
+                          />
+                        )}
                         <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                           {group.label}
                         </span>

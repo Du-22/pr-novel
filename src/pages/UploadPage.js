@@ -21,6 +21,7 @@ import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
 import { uploadCoverImage } from "../firebase/storageHelper";
 import { uploadChapters } from "../firebase/chapters";
+import { compressImage } from "../utils/imageCompressor";
 
 const DEFAULT_COVER = "/images/covers/default-cover.png";
 
@@ -44,12 +45,32 @@ export default function UploadPage() {
   // 建立後不可切換
   const [volumeMode, setVolumeMode] = useState("flat");
   const [volume1Title, setVolume1Title] = useState("卷 1");
+  // 卷 1 封面(選填),base64 字串或 null
+  const [volume1Cover, setVolume1Cover] = useState(null);
+  const [volume1CoverCompressing, setVolume1CoverCompressing] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState("");
 
   const [storageInfo] = useState(getStorageUsage());
+
+  // 卷 1 封面選檔 — 壓縮後存 base64
+  const handleVolume1CoverFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setVolume1CoverCompressing(true);
+    try {
+      const compressed = await compressImage(file);
+      setVolume1Cover(compressed);
+    } catch (err) {
+      console.error("壓縮失敗:", err);
+      setError("卷封面壓縮失敗,請重試");
+    } finally {
+      setVolume1CoverCompressing(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -98,11 +119,17 @@ export default function UploadPage() {
 
       // 分卷模式:novelData 加上 volumeMode 與初始 volumes(只有卷 1)
       if (volumeMode === "volumed") {
+        // 若使用者上傳了卷 1 封面,先上傳到 Storage 拿 URL
+        let v1CoverUrl = null;
+        if (volume1Cover && volume1Cover.startsWith("data:")) {
+          v1CoverUrl = await uploadCoverImage(user.uid, volume1Cover);
+        }
         novelData.volumeMode = "volumed";
         novelData.volumes = [
           {
             volumeNumber: 1,
             title: volume1Title.trim() || "卷 1",
+            coverImage: v1CoverUrl, // 沒上傳就是 null
             createdAt: new Date().toISOString(),
           },
         ];
@@ -255,6 +282,53 @@ export default function UploadPage() {
                 <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                   這次上傳的所有章節會放在這一卷裡。事後可以改名稱。
                 </p>
+
+                {/* 卷 1 封面(選填)*/}
+                <div className="mt-4">
+                  <label className="block text-sm font-medium mb-1 text-neutral-900 dark:text-neutral-100">
+                    卷 1 封面{" "}
+                    <span className="text-xs font-normal text-neutral-400 dark:text-neutral-500">
+                      (選填)
+                    </span>
+                  </label>
+                  <p className="mb-2 text-xs text-neutral-500 dark:text-neutral-400">
+                    卷封面會顯示在詳情頁該卷分組標題旁。不上傳就只有文字標題。
+                  </p>
+                  <div className="flex items-center gap-3">
+                    {volume1Cover && (
+                      <img
+                        src={volume1Cover}
+                        alt="卷 1 封面預覽"
+                        className="w-16 h-20 object-cover rounded border border-neutral-200 dark:border-neutral-700"
+                      />
+                    )}
+                    <label className="inline-flex items-center px-3 py-1.5 rounded-lg border cursor-pointer text-sm font-medium transition-colors
+                                      border-neutral-300 text-neutral-700 hover:border-primary hover:text-primary
+                                      dark:border-neutral-700 dark:text-neutral-300 dark:hover:border-primary-light dark:hover:text-primary-light">
+                      {volume1CoverCompressing
+                        ? "處理中..."
+                        : volume1Cover
+                        ? "更換卷 1 封面"
+                        : "選擇卷 1 封面"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleVolume1CoverFile}
+                        className="hidden"
+                        disabled={volume1CoverCompressing}
+                      />
+                    </label>
+                    {volume1Cover && (
+                      <button
+                        type="button"
+                        onClick={() => setVolume1Cover(null)}
+                        className="text-sm text-danger hover:underline"
+                      >
+                        移除
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>

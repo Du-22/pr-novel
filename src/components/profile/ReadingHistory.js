@@ -8,7 +8,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { History } from "lucide-react";
 import DefaultCover from "../DefaultCover";
-import { getAllReadHistory } from "../../utils/readHistoryManager";
+import { getAllReadHistory, countReadChapters } from "../../utils/readHistoryManager";
 import { getAllNovels } from "../../utils/novelsHelper";
 import { ProfileListSkeleton } from "../Skeleton";
 
@@ -55,7 +55,7 @@ export default function ReadingHistory() {
 
   const getProgress = (readChapters, totalChapters) => {
     if (totalChapters === 0) return 0;
-    return Math.round((readChapters.length / totalChapters) * 100);
+    return Math.round((countReadChapters(readChapters) / totalChapters) * 100);
   };
 
   const formatDate = (dateString) => {
@@ -170,7 +170,7 @@ export default function ReadingHistory() {
                   <div className="mb-3">
                     <div className="flex items-center justify-between text-sm mb-1">
                       <span className="text-neutral-600 dark:text-neutral-400">
-                        已讀 {item.readChapters.length} / {item.totalChapters} 章
+                        已讀 {countReadChapters(item.readChapters)} / {item.totalChapters} 章
                       </span>
                       <span className="font-semibold text-primary dark:text-primary-light">
                         {progress}%
