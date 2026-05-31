@@ -20,7 +20,6 @@ import { getAllNovels } from "../utils/novelsHelper";
 import { getTotalWordCount, formatWordCount } from "../utils/parser";
 import { formatChapterLabel, formatChapterLabelText } from "../utils/chapterLabel";
 import { getChaptersMetadata } from "../firebase/chapters";
-import { getNovelsByTag } from "../utils/random";
 import { getNovelReadData } from "../utils/readHistoryManager";
 import {
   incrementNovelViews,
