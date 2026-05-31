@@ -89,6 +89,7 @@ export default function CommentsSection({
   novelId,
   novelTitle = "",
   chapterNumber = null,
+  volumeNumber = null, // 分卷小說傳卷號;不傳代表單卷或詳情頁
   chapters = [],
 }) {
   const { user } = useAuth();
@@ -150,11 +151,16 @@ export default function CommentsSection({
       const snapshot = await getDocs(q);
       const all = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      const topLevel = all.filter(
-        (c) =>
-          !c.parentId &&
-          (chapterNumber === null ? true : c.chapterNumber === chapterNumber),
-      );
+      const topLevel = all.filter((c) => {
+        if (c.parentId) return false;
+        if (chapterNumber === null) return true;
+        if (c.chapterNumber !== chapterNumber) return false;
+        // 分卷:同卷的留言才算這頁的;單卷不檢查 volumeNumber
+        if (volumeNumber !== null) {
+          return (c.volumeNumber ?? null) === volumeNumber;
+        }
+        return true;
+      });
       const topLevelIds = new Set(topLevel.map((c) => c.id));
       const replies = all.filter(
         (c) => c.parentId && topLevelIds.has(c.parentId),
@@ -183,7 +189,7 @@ export default function CommentsSection({
     } finally {
       setLoading(false);
     }
-  }, [chapterNumber, itemsCol]);
+  }, [chapterNumber, volumeNumber, itemsCol]);
 
   useEffect(() => {
     loadComments();
@@ -251,6 +257,7 @@ export default function CommentsSection({
         parentId: null,
         replyCount: 0,
         chapterNumber: chapterNumber ?? null,
+        volumeNumber: volumeNumber ?? null,
         createdAt: new Date(),
       });
 
@@ -320,6 +327,7 @@ export default function CommentsSection({
         parentId: replyingTo.id,
         parentFloor,
         chapterNumber: chapterNumber ?? null,
+        volumeNumber: volumeNumber ?? null,
         createdAt: new Date(),
       });
 

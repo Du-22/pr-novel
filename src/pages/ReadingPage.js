@@ -427,6 +427,7 @@ function ReadingPage() {
         <CommentsSection
           novelId={id}
           chapterNumber={chapterNumber}
+          volumeNumber={volumeNumber}
           chapters={chapters}
         />
       </div>
