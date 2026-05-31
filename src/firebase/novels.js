@@ -24,7 +24,7 @@ import {
 // 章節 content 不寫 Firestore，放 Storage novels/{id}/chapters/{n}.txt
 export const uploadNovelToFirestore = async (novelData, userId) => {
   try {
-    const docRef = await addDoc(collection(db, "novels"), {
+    const docData = {
       title: novelData.title,
       author: novelData.author,
       translator: novelData.translator || "",
@@ -37,7 +37,14 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
       isOfficial: false,
       createdAt: serverTimestamp(),
       stats: { views: 0, favorites: 0 },
-    });
+    };
+    // 分卷模式:寫入 volumeMode + volumes 結構
+    // 單卷模式(預設,既有書沒這欄位):不寫,讀取時當 flat 處理
+    if (novelData.volumeMode === "volumed") {
+      docData.volumeMode = "volumed";
+      docData.volumes = novelData.volumes || [];
+    }
+    const docRef = await addDoc(collection(db, "novels"), docData);
 
     console.log("✅ 小說上傳成功，ID:", docRef.id);
 

@@ -50,8 +50,9 @@ const updateNovelChapterStats = async (novelId, chapterCount, totalWordCount) =>
  * @param {Array} chapters - parser 產出的章節陣列（含 content）
  * @param {(done, total) => void} [onProgress]
  */
-export const uploadChapters = async (novelId, chapters, onProgress) => {
+export const uploadChapters = async (novelId, chapters, onProgress, options = {}) => {
   if (!chapters || chapters.length === 0) return;
+  const { volumeNumber = null } = options;
 
   // Step 1: 平行限流上傳 content 到 Storage，收集 contentUrl
   let uploadedCount = 0;
@@ -99,7 +100,7 @@ export const uploadChapters = async (novelId, chapters, onProgress) => {
           "chapters",
           String(chapter.chapterNumber)
         );
-        batch.set(chapterRef, {
+        const data = {
           chapterNumber: chapter.chapterNumber,
           title: chapter.title || "",
           wordCount: chapter.wordCount || 0,
@@ -108,7 +109,12 @@ export const uploadChapters = async (novelId, chapters, onProgress) => {
           contentUrl: chapter.contentUrl,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
-        });
+        };
+        // 分卷小說章節記錄所屬卷;單卷小說(flat)不寫此欄位以維持相容
+        if (volumeNumber != null) {
+          data.volumeNumber = volumeNumber;
+        }
+        batch.set(chapterRef, data);
       });
       await batch.commit();
     }

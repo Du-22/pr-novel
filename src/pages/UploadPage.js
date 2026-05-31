@@ -38,6 +38,13 @@ export default function UploadPage() {
   const [chapters, setChapters] = useState([]);
   const [coverImage, setCoverImage] = useState(null);
 
+  // 分卷模式相關:
+  // - volumeMode = 'flat' (預設,單卷上傳,既有書全部走這個)
+  // - volumeMode = 'volumed' (分卷上傳,卷 1 內可含序章/終章/番外,日後可繼續加卷 2、卷 3)
+  // 建立後不可切換
+  const [volumeMode, setVolumeMode] = useState("flat");
+  const [volume1Title, setVolume1Title] = useState("卷 1");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState("");
@@ -89,6 +96,18 @@ export default function UploadPage() {
         uploaderName: user?.displayName || user?.email?.split("@")[0] || "",
       };
 
+      // 分卷模式:novelData 加上 volumeMode 與初始 volumes(只有卷 1)
+      if (volumeMode === "volumed") {
+        novelData.volumeMode = "volumed";
+        novelData.volumes = [
+          {
+            volumeNumber: 1,
+            title: volume1Title.trim() || "卷 1",
+            createdAt: new Date().toISOString(),
+          },
+        ];
+      }
+
       const savedNovel = saveUploadedNovel(novelData);
 
       let targetId = savedNovel.id;
@@ -97,8 +116,12 @@ export default function UploadPage() {
         if (firestoreId) {
           targetId = firestoreId;
           setUploadProgress({ done: 0, total: chapters.length });
-          await uploadChapters(firestoreId, chapters, (done, total) =>
-            setUploadProgress({ done, total })
+          // 分卷模式上傳時帶 volumeNumber=1(這次是卷 1)
+          await uploadChapters(
+            firestoreId,
+            chapters,
+            (done, total) => setUploadProgress({ done, total }),
+            volumeMode === "volumed" ? { volumeNumber: 1 } : {}
           );
         }
         await refreshNovels();
@@ -170,6 +193,72 @@ export default function UploadPage() {
 
         {/* ========== 表單 ========== */}
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 上傳模式選擇 — 建立後不可變更 */}
+          <div className="rounded-2xl border p-5 sm:p-6
+                          bg-white border-neutral-200
+                          dark:bg-neutral-900 dark:border-neutral-800">
+            <h2 className="text-lg font-semibold mb-2 text-neutral-900 dark:text-neutral-100">
+              上傳模式
+            </h2>
+            <p className="text-sm mb-4 text-neutral-500 dark:text-neutral-400">
+              建立後無法變更。若不確定請選「單卷上傳」。
+            </p>
+
+            <div className="inline-flex gap-1 p-1 mb-4 rounded-lg
+                            bg-neutral-100 dark:bg-neutral-800">
+              <button
+                type="button"
+                onClick={() => setVolumeMode("flat")}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                  volumeMode === "flat"
+                    ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                }`}
+              >
+                單卷上傳
+              </button>
+              <button
+                type="button"
+                onClick={() => setVolumeMode("volumed")}
+                className={`px-5 py-2 rounded-md font-medium text-sm transition-all ${
+                  volumeMode === "volumed"
+                    ? "bg-white text-primary shadow-sm dark:bg-neutral-700 dark:text-primary-light"
+                    : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                }`}
+              >
+                分卷上傳
+              </button>
+            </div>
+
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">
+              {volumeMode === "flat"
+                ? "整本書平鋪顯示。日後新增章節會接在現有章節後面。"
+                : "目錄會依卷分組顯示。日後可繼續新增卷 2、卷 3,每卷內可獨立有自己的序章 / 終章 / 番外。"}
+            </p>
+
+            {/* 分卷模式才顯示卷 1 名稱欄位 */}
+            {volumeMode === "volumed" && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium mb-1 text-neutral-900 dark:text-neutral-100">
+                  卷 1 名稱
+                </label>
+                <input
+                  type="text"
+                  value={volume1Title}
+                  onChange={(e) => setVolume1Title(e.target.value)}
+                  placeholder="例如:卷 1、起始篇、青少年期"
+                  className="w-full px-3 py-2 rounded-lg border
+                             bg-white text-neutral-900 placeholder-neutral-400 border-neutral-300
+                             focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20
+                             dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder-neutral-500 dark:border-neutral-700"
+                />
+                <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  這次上傳的所有章節會放在這一卷裡。事後可以改名稱。
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* TXT 上傳區 */}
           <TxtUploadSection
             onChaptersChange={setChapters}
