@@ -145,6 +145,7 @@ export default function NovelDetailPage() {
   const [sameAuthorNovels, setSameAuthorNovels] = useState([]);
   const [readChapters, setReadChapters] = useState([]);
   const [lastChapter, setLastChapter] = useState(null);
+  const [lastPage, setLastPage] = useState(null);
   const [stats, setStats] = useState({ views: 0, favorites: 0 });
   const [ratingStats, setRatingStats] = useState({ ratingSum: 0, ratingCount: 0 });
   const [userRating, setUserRating] = useState(null);
@@ -179,9 +180,10 @@ export default function NovelDetailPage() {
       sameAuthor.map((n) => n.id)
     );
 
-    const { readChapters: readChs, lastChapter: lastCh } = await getNovelReadData(id);
+    const { readChapters: readChs, lastChapter: lastCh, lastPage: lastPg } = await getNovelReadData(id);
     setReadChapters(readChs);
     setLastChapter(lastCh);
+    setLastPage(lastPg);
 
     const freshNovel = await fetchNovelStats(id);
     const baseViews = freshNovel?.stats?.views ?? foundNovel.stats?.views ?? 0;
@@ -310,7 +312,8 @@ export default function NovelDetailPage() {
     if (lastChapter) {
       const chapterExists = chapters.find((c) => c.chapterNumber === lastChapter);
       if (chapterExists) {
-        navigate(`/novel/${id}/read/${lastChapter}`);
+        const base = `/novel/${id}/read/${lastChapter}`;
+        navigate(lastPage && lastPage > 1 ? `${base}?page=${lastPage}` : base);
         return;
       }
     }

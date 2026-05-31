@@ -96,7 +96,16 @@ function ReadingPage() {
         );
         setTotalPages(pages);
 
-        setCurrentPage(1);
+        // 從 URL ?page=N 讀取初始頁碼,超出範圍時 clamp
+        const urlPage = parseInt(
+          new URLSearchParams(window.location.search).get("page"),
+          10
+        );
+        const initPage =
+          Number.isFinite(urlPage) && urlPage > 0
+            ? Math.min(urlPage, pages || 1)
+            : 1;
+        setCurrentPage(initPage);
         setLoading(false);
       } catch (err) {
         console.error("載入失敗:", err);
@@ -108,12 +117,24 @@ function ReadingPage() {
     loadNovel();
   }, [id, chapterNumber]);
 
-  // ========== 進入章節時立即標記為已讀 ==========
+  // ========== 同步當前頁碼:URL ?page= 與 readHistory.lastPage ==========
+  // - 章節載入完成後 / 換頁時觸發
+  // - URL 用 replaceState 不污染 history(返回鍵不會在頁碼間跳)
+  // - currentPage === 1 時不寫 ?page=1(URL 保持乾淨)
   useEffect(() => {
-    if (currentChapter) {
-      markChapterAsRead(id, chapterNumber).catch(() => {});
+    if (!currentChapter || loading) return;
+    // 章節剛切換、舊 currentPage 還沒重置時要擋住,
+    // 否則會把 ?page=N 帶到新章節 URL
+    if (currentChapter.chapterNumber !== chapterNumber) return;
+    const url = new URL(window.location.href);
+    if (currentPage > 1) {
+      url.searchParams.set("page", String(currentPage));
+    } else {
+      url.searchParams.delete("page");
     }
-  }, [id, chapterNumber, currentChapter]);
+    window.history.replaceState({}, "", url);
+    markChapterAsRead(id, chapterNumber, currentPage).catch(() => {});
+  }, [id, chapterNumber, currentPage, currentChapter, loading]);
 
   // ========== 取得當前頁內容 ==========
   const getCurrentPageContent = () => {
@@ -153,7 +174,7 @@ function ReadingPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-reading-light dark:bg-reading-dark">
-        <Navbar showBackButton={true} />
+        <Navbar showBackButton={true} backTo={`/novel/${id}`} />
         <ReadingPageSkeleton />
       </div>
     );
@@ -163,7 +184,7 @@ function ReadingPage() {
   if (error) {
     return (
       <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
-        <Navbar showBackButton={true} />
+        <Navbar showBackButton={true} backTo={`/novel/${id}`} />
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
             <AlertCircle className="w-12 h-12 mx-auto mb-4 text-danger" />
@@ -195,7 +216,7 @@ function ReadingPage() {
 
   return (
     <div className="min-h-screen bg-reading-light dark:bg-reading-dark">
-      <Navbar showBackButton={true} />
+      <Navbar showBackButton={true} backTo={`/novel/${id}`} />
 
       {/* ========== 章節標題區 ========== */}
       <header className="border-b bg-white border-neutral-200
@@ -272,36 +293,38 @@ function ReadingPage() {
           ))}
         </article>
 
-        {/* ========== 分頁控制 (章節內分頁) ========== */}
+        {/* ========== 分頁控制 (章節內分頁,主要動作 — 大鈕) ========== */}
         {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-3 mt-10">
+          <div className="flex items-stretch gap-3 mt-10">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium transition-all
-                         border-neutral-300 text-neutral-700
-                         hover:border-primary hover:text-primary
+              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
+                         border-primary text-primary
+                         hover:bg-primary hover:text-white
                          disabled:opacity-40 disabled:cursor-not-allowed
-                         disabled:hover:border-neutral-300 disabled:hover:text-neutral-700
-                         dark:border-neutral-700 dark:text-neutral-300
-                         dark:hover:border-primary-light dark:hover:text-primary-light"
+                         disabled:hover:bg-transparent disabled:hover:text-primary
+                         dark:border-primary-light dark:text-primary-light
+                         dark:hover:bg-primary-light dark:hover:text-neutral-900
+                         dark:disabled:hover:bg-transparent dark:disabled:hover:text-primary-light"
             >
               <ChevronLeft className="w-4 h-4" />
               上一頁
             </button>
-            <span className="text-sm text-neutral-500 dark:text-neutral-400">
+            <div className="flex items-center px-3 text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
               {currentPage} / {totalPages}
-            </span>
+            </div>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium transition-all
-                         border-neutral-300 text-neutral-700
-                         hover:border-primary hover:text-primary
+              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
+                         border-primary text-primary
+                         hover:bg-primary hover:text-white
                          disabled:opacity-40 disabled:cursor-not-allowed
-                         disabled:hover:border-neutral-300 disabled:hover:text-neutral-700
-                         dark:border-neutral-700 dark:text-neutral-300
-                         dark:hover:border-primary-light dark:hover:text-primary-light"
+                         disabled:hover:bg-transparent disabled:hover:text-primary
+                         dark:border-primary-light dark:text-primary-light
+                         dark:hover:bg-primary-light dark:hover:text-neutral-900
+                         dark:disabled:hover:bg-transparent dark:disabled:hover:text-primary-light"
             >
               下一頁
               <ChevronRight className="w-4 h-4" />
@@ -309,16 +332,16 @@ function ReadingPage() {
           </div>
         )}
 
-        {/* ========== 章節導航 ========== */}
-        <div className="flex flex-wrap items-stretch gap-3 mt-10">
+        {/* ========== 章節導航 (次要動作 — 小鈕) ========== */}
+        <div className="flex flex-wrap justify-center items-center gap-2 mt-6">
           {hasPrevChapter && (
             <button
               onClick={() => handleChapterChange("prev")}
-              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
-                         border-primary text-primary
-                         hover:bg-primary hover:text-white
-                         dark:border-primary-light dark:text-primary-light
-                         dark:hover:bg-primary-light dark:hover:text-neutral-900"
+              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium text-sm transition-all
+                         border-neutral-300 text-neutral-700
+                         hover:border-primary hover:text-primary
+                         dark:border-neutral-700 dark:text-neutral-300
+                         dark:hover:border-primary-light dark:hover:text-primary-light"
             >
               <ArrowLeft className="w-4 h-4" />
               上一章
@@ -327,9 +350,11 @@ function ReadingPage() {
 
           <button
             onClick={() => navigate(`/novel/${id}`)}
-            className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all
-                       bg-neutral-100 text-neutral-700 hover:bg-neutral-200
-                       dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+            className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium text-sm transition-all
+                       border-neutral-300 text-neutral-700
+                       hover:border-primary hover:text-primary
+                       dark:border-neutral-700 dark:text-neutral-300
+                       dark:hover:border-primary-light dark:hover:text-primary-light"
           >
             <List className="w-4 h-4" />
             目錄
@@ -338,11 +363,11 @@ function ReadingPage() {
           {hasNextChapter && (
             <button
               onClick={() => handleChapterChange("next")}
-              className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
-                         border-primary text-primary
-                         hover:bg-primary hover:text-white
-                         dark:border-primary-light dark:text-primary-light
-                         dark:hover:bg-primary-light dark:hover:text-neutral-900"
+              className="inline-flex items-center gap-1 px-4 py-2 rounded-lg border font-medium text-sm transition-all
+                         border-neutral-300 text-neutral-700
+                         hover:border-primary hover:text-primary
+                         dark:border-neutral-700 dark:text-neutral-300
+                         dark:hover:border-primary-light dark:hover:text-primary-light"
             >
               下一章
               <ArrowRight className="w-4 h-4" />
