@@ -33,7 +33,7 @@ import {
 import { ADMIN_UID } from "../config/adminConfig";
 import Logo from "./Logo";
 
-const Navbar = ({ showBackButton = false }) => {
+const Navbar = ({ showBackButton = false, backTo = null }) => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const { isDark, toggle: toggleDarkMode } = useDarkMode();
@@ -125,10 +125,10 @@ const Navbar = ({ showBackButton = false }) => {
           <div className="flex items-center space-x-2">
             {showBackButton && (
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => (backTo ? navigate(backTo) : navigate(-1))}
                 className="p-2 text-neutral-700 hover:text-primary transition-colors
                            dark:text-neutral-300 dark:hover:text-primary-light"
-                aria-label="返回上一頁"
+                aria-label={backTo ? "返回小說詳情" : "返回上一頁"}
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>

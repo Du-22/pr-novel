@@ -27,7 +27,7 @@ function saveLocalHistory(history) {
 // ========== 公開 API ==========
 
 /**
- * 取得單本小說的閱讀資料 { readChapters, lastChapter, lastRead }
+ * 取得單本小說的閱讀資料 { readChapters, lastChapter, lastPage, lastRead }
  * 一次讀取，避免多次 Firestore 查詢
  */
 export async function getNovelReadData(novelId) {
@@ -39,6 +39,7 @@ export async function getNovelReadData(novelId) {
         const entry = {
           readChapters: docData.readChapters || [],
           lastChapter: docData.lastChapter || null,
+          lastPage: docData.lastPage || null,
           lastRead: docData.lastRead || null,
         };
         const local = getLocalHistory();
@@ -46,13 +47,14 @@ export async function getNovelReadData(novelId) {
         saveLocalHistory(local);
         return entry;
       }
-      return { readChapters: [], lastChapter: null, lastRead: null };
+      return { readChapters: [], lastChapter: null, lastPage: null, lastRead: null };
     } catch (err) {
       console.error("讀取閱讀資料失敗:", err);
       const local = getLocalHistory()[novelId];
       return {
         readChapters: local?.readChapters || [],
         lastChapter: local?.lastChapter || null,
+        lastPage: local?.lastPage || null,
         lastRead: local?.lastRead || null,
       };
     }
@@ -61,6 +63,7 @@ export async function getNovelReadData(novelId) {
   return {
     readChapters: local?.readChapters || [],
     lastChapter: local?.lastChapter || null,
+    lastPage: local?.lastPage || null,
     lastRead: local?.lastRead || null,
   };
 }
@@ -75,18 +78,20 @@ export async function getReadChapters(novelId) {
 }
 
 /**
- * 標記章節為已讀，同時記錄 lastChapter
+ * 標記章節為已讀，同時記錄 lastChapter / lastPage
+ * page 可省略，預設 1
  */
-export async function markChapterAsRead(novelId, chapterNumber) {
+export async function markChapterAsRead(novelId, chapterNumber, page = 1) {
   const history = getLocalHistory();
   if (!history[novelId]) {
-    history[novelId] = { readChapters: [], lastChapter: null, lastRead: null };
+    history[novelId] = { readChapters: [], lastChapter: null, lastPage: null, lastRead: null };
   }
   if (!history[novelId].readChapters.includes(chapterNumber)) {
     history[novelId].readChapters.push(chapterNumber);
     history[novelId].readChapters.sort((a, b) => a - b);
   }
   history[novelId].lastChapter = chapterNumber;
+  history[novelId].lastPage = page;
   history[novelId].lastRead = new Date().toISOString();
   saveLocalHistory(history);
 
@@ -109,6 +114,7 @@ export async function getAllReadHistory() {
         result[d.id] = {
           readChapters: d.readChapters || [],
           lastChapter: d.lastChapter || null,
+          lastPage: d.lastPage || null,
           lastRead: d.lastRead || null,
         };
       });
