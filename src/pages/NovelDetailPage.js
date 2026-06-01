@@ -5,7 +5,7 @@
 //       無封面時自動套用 DefaultCover,收藏按鈕用 warm accent (整體 design 的關鍵 accent moment)
 // ============================================
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { BookOpen, Heart, Check, X, ChevronDown, Search } from "lucide-react";
 import Navbar from "../components/Navbar";
@@ -22,7 +22,6 @@ import { formatChapterLabel, formatChapterLabelText } from "../utils/chapterLabe
 import { getChaptersMetadata } from "../firebase/chapters";
 import { getNovelReadData, isChapterReadIn } from "../utils/readHistoryManager";
 import {
-  incrementNovelViews,
   incrementNovelFavorites,
   decrementNovelFavorites,
   getNovelById as fetchNovelStats,
@@ -189,8 +188,6 @@ export default function NovelDetailPage() {
   const [showCoverLightbox, setShowCoverLightbox] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [openGroups, setOpenGroups] = useState(() => new Set());
-  // 防止 React StrictMode 雙重觸發閱讀數
-  const incrementedForIdRef = useRef(null);
 
   useEffect(() => {
     loadNovelData();
@@ -222,16 +219,12 @@ export default function NovelDetailPage() {
     setLastPage(lastPg);
     setLastVolume(lastVol);
 
+    // 閱讀數改成「進入章節閱讀頁」才 +1(在 ReadingPage 處理),
+    // 詳情頁不再自動 +1
     const freshNovel = await fetchNovelStats(id);
     const baseViews = freshNovel?.stats?.views ?? foundNovel.stats?.views ?? 0;
     const baseFavorites = freshNovel?.stats?.favorites ?? foundNovel.stats?.favorites ?? 0;
-    if (incrementedForIdRef.current !== id) {
-      incrementedForIdRef.current = id;
-      setStats({ views: baseViews + 1, favorites: baseFavorites });
-      incrementNovelViews(id).catch(() => {});
-    } else {
-      setStats({ views: baseViews, favorites: baseFavorites });
-    }
+    setStats({ views: baseViews, favorites: baseFavorites });
 
     const favorited = await checkIsFavorited(id);
     setIsFavorited(favorited);
