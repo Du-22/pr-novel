@@ -25,6 +25,7 @@ import { markChapterAsRead } from "../utils/readHistoryManager";
 import CommentsSection from "../components/CommentsSection";
 import { ReadingPageSkeleton } from "../components/Skeleton";
 import { getChapter, getChaptersMetadata } from "../firebase/chapters";
+import { incrementNovelViews } from "../firebase/novels";
 import { formatChapterLabel } from "../utils/chapterLabel";
 
 const CHARS_PER_PAGE = 3000;
@@ -68,6 +69,11 @@ function ReadingPage() {
   const [novel, setNovel] = useState(null);
   const [chapters, setChapters] = useState([]);
   const [currentChapter, setCurrentChapter] = useState(null);
+
+  // 閱讀數 +1 防呆 ref:鍵=當前 (novelId, volumeNumber, chapterNumber),
+  // 同章節 React StrictMode 雙觸發 / 同 instance 內 effect 重跑都會被擋掉;
+  // 章節 / 卷號變了就會放行 +1。F5 整個元件重建,ref 重置 → 會 +1。
+  const lastIncrementedKeyRef = useRef(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -115,6 +121,15 @@ function ReadingPage() {
           return;
         }
         setCurrentChapter(currentChapterData);
+
+        // ===== 閱讀數 +1(每進入一個新章節算一次)=====
+        // 同章節 React StrictMode 雙觸發會被 ref 擋掉;
+        // 同章節內換頁(currentPage 變)不會走到這個 effect → 不計
+        const incrementKey = `${id}-${volumeNumber ?? "flat"}-${chapterNumber}`;
+        if (lastIncrementedKeyRef.current !== incrementKey) {
+          lastIncrementedKeyRef.current = incrementKey;
+          incrementNovelViews(id).catch(() => {});
+        }
 
         const pages = Math.ceil(
           (currentChapterData.content || "").length / CHARS_PER_PAGE
