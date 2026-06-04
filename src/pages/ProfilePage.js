@@ -5,7 +5,7 @@
 // ============================================
 
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, Navigate, useNavigate } from "react-router-dom";
 import { Heart, BookMarked, History } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -23,10 +23,11 @@ const TABS = [
   { id: "history", label: "閱讀記錄", Icon: History },
 ];
 
+const VALID_TABS = TABS.map((t) => t.id);
+
 export default function ProfilePage() {
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") || "favorites";
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const { tab } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [bio, setBio] = useState("");
@@ -85,6 +86,14 @@ export default function ProfilePage() {
 
   const displayName = user?.displayName || user?.email?.split("@")[0] || "使用者";
   const initial = displayName.charAt(0).toUpperCase();
+
+  // tab 切換改成 URL 操作(各 tab 有自己路徑);
+  // 不認得的 tab 名稱導回預設
+  if (tab && !VALID_TABS.includes(tab)) {
+    return <Navigate to="/profile/favorites" replace />;
+  }
+  const activeTab = tab;
+  const setActiveTab = (id) => navigate(`/profile/${id}`);
 
   const renderContent = () => {
     switch (activeTab) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { loadAllNovels } from "./utils/novelsHelper";
 import ScrollToTop from "./components/ScrollToTop";
@@ -7,10 +7,7 @@ import Logo from "./components/Logo";
 import HomePage from "./pages/HomePage";
 import NovelDetailPage from "./pages/NovelDetailPage";
 import ReadingPage from "./pages/ReadingPage";
-import RankingPage from "./pages/RankingPage";
-import FavoritesRankingPage from "./pages/FavoritesRankingPage";
-import ViewsRankingPage from "./pages/ViewsRankingPage";
-import NewRankingPage from "./pages/NewRankingPage";
+import SubRankingPage from "./components/SubRankingPage";
 import TagsPage from "./pages/TagsPage";
 import UploadPage from "./pages/UploadPage";
 import MyUploadsPage from "./pages/MyUploadsPage";
@@ -59,17 +56,11 @@ function App() {
         {/* 閱讀頁 — 分卷小說(URL 多帶卷號)*/}
         <Route path="/novel/:id/read/:vol/:ch" element={<ReadingPage />} />
 
-        {/* 排行榜頁 */}
-        <Route path="/ranking" element={<RankingPage />} />
-
-        {/* 新書榜 */}
-        <Route path="/ranking/new" element={<NewRankingPage />} />
-
-        {/* 收藏榜 */}
-        <Route path="/ranking/favorites" element={<FavoritesRankingPage />} />
-
-        {/* 人氣榜 */}
-        <Route path="/ranking/views" element={<ViewsRankingPage />} />
+        {/* 排行榜 — 三榜各一獨立路徑,/ranking 預設導向人氣榜 */}
+        <Route path="/ranking" element={<Navigate to="/ranking/views" replace />} />
+        <Route path="/ranking/views" element={<SubRankingPage type="views" />} />
+        <Route path="/ranking/favorites" element={<SubRankingPage type="favorites" />} />
+        <Route path="/ranking/new" element={<SubRankingPage type="new" />} />
 
         {/* 標籤篩選頁 */}
         <Route path="/tags" element={<TagsPage />} />
@@ -85,8 +76,9 @@ function App() {
         {/* 編輯章節 — 分卷 */}
         <Route path="/my-uploads/edit/:id/v/:vol/chapter/:ch" element={<EditChapterPage />} />
 
-        {/* 個人中心頁 */}
-        <Route path="/profile" element={<ProfilePage />} />
+        {/* 個人中心 — 三個 tab 各一獨立路徑,/profile 預設導向收藏 */}
+        <Route path="/profile" element={<Navigate to="/profile/favorites" replace />} />
+        <Route path="/profile/:tab" element={<ProfilePage />} />
 
         {/* 搜尋頁 */}
         <Route path="/search" element={<SearchPage />} />

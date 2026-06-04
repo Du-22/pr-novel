@@ -150,7 +150,7 @@ export default function EditUploadPage() {
 
       setHasUnsavedChanges(false);
       alert("儲存成功!");
-      navigate("/profile?tab=works");
+      navigate("/profile/works");
     } catch (err) {
       console.error("儲存失敗:", err);
       setError("儲存失敗,請稍後再試");
@@ -163,7 +163,7 @@ export default function EditUploadPage() {
     if (hasUnsavedChanges) {
       if (!window.confirm("你有未儲存的變更,確定要離開嗎?")) return;
     }
-    navigate("/profile?tab=works");
+    navigate("/profile/works");
   };
 
   if (loading) {
