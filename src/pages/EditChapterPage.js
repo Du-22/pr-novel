@@ -47,12 +47,12 @@ export default function EditChapterPage() {
       const novel = await getNovelById(id);
       if (!novel) {
         alert("找不到此小說");
-        navigate("/profile?tab=works");
+        navigate("/profile/works");
         return;
       }
       if (user && novel.authorUid !== user.uid) {
         alert("你沒有編輯此小說的權限");
-        navigate("/profile?tab=works");
+        navigate("/profile/works");
         return;
       }
 
