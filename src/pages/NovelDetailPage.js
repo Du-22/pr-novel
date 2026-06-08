@@ -7,7 +7,19 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { BookOpen, Heart, Check, X, ChevronDown, Search } from "lucide-react";
+import {
+  BookOpen,
+  Heart,
+  Check,
+  X,
+  ChevronDown,
+  Search,
+  Share2,
+  Copy,
+  Mail,
+  MessageCircle,
+  MoreHorizontal,
+} from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import NovelCard from "../components/NovelCard";
@@ -188,6 +200,8 @@ export default function NovelDetailPage() {
   const [showCoverLightbox, setShowCoverLightbox] = useState(false);
   const [chapterSearch, setChapterSearch] = useState("");
   const [openGroups, setOpenGroups] = useState(() => new Set());
+  const [shareCopied, setShareCopied] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
 
   useEffect(() => {
     loadNovelData();
@@ -337,6 +351,68 @@ export default function NovelDetailPage() {
     }
   };
 
+  const copyShareUrl = async (url) => {
+    let copied = false;
+
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch (error) {
+        copied = false;
+      }
+    }
+
+    if (!copied) {
+      const textArea = document.createElement("textarea");
+      textArea.value = url;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.left = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    }
+
+    setShareCopied(true);
+    window.setTimeout(() => setShareCopied(false), 2000);
+  };
+
+  const getShareUrl = () => `${window.location.origin}/novel/${id}`;
+
+  const getShareData = () => {
+    const shareUrl = getShareUrl();
+    return {
+      title: `${novel.title} - PR 小說網`,
+      text: `分享《${novel.title}》給你`,
+      url: shareUrl,
+    };
+  };
+
+  const handleNativeShare = async () => {
+    const shareData = getShareData();
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        return;
+      } catch (error) {
+        if (error.name === "AbortError") return;
+      }
+    }
+
+    await copyShareUrl(shareData.url);
+  };
+
+  const openShareTarget = (url) => {
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleShareNovel = () => {
+    setShowShareDialog(true);
+  };
+
   // 找上次讀的章節:分卷模式靠 (lastVolume, lastChapter),單卷靠 lastChapter
   const findLastChapter = () => {
     if (!lastChapter) return null;
@@ -444,6 +520,59 @@ export default function NovelDetailPage() {
 
   const isDefaultCover =
     !novel.coverImage || novel.coverImage === DEFAULT_COVER_PATH;
+  const shareUrl = getShareUrl();
+  const encodedShareUrl = encodeURIComponent(shareUrl);
+  const encodedShareTitle = encodeURIComponent(`${novel.title} - PR 小說網`);
+  const encodedShareText = encodeURIComponent(`分享《${novel.title}》給你`);
+  const shareTargets = [
+    {
+      label: "複製連結",
+      type: "copy",
+      Icon: Copy,
+      className: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200",
+    },
+    {
+      label: "LINE",
+      type: "external",
+      Icon: MessageCircle,
+      url: `https://social-plugins.line.me/lineit/share?url=${encodedShareUrl}`,
+      className: "bg-[#06C755] text-white",
+    },
+    {
+      label: "Facebook",
+      type: "external",
+      iconText: "f",
+      url: `https://www.facebook.com/sharer/sharer.php?u=${encodedShareUrl}`,
+      className: "bg-[#1877F2] text-white",
+    },
+    {
+      label: "X",
+      type: "external",
+      iconText: "X",
+      url: `https://twitter.com/intent/tweet?text=${encodedShareText}&url=${encodedShareUrl}`,
+      className: "bg-neutral-950 text-white dark:bg-neutral-100 dark:text-neutral-950",
+    },
+    {
+      label: "Gmail",
+      type: "external",
+      Icon: Mail,
+      url: `https://mail.google.com/mail/?view=cm&fs=1&su=${encodedShareTitle}&body=${encodedShareText}%0A${encodedShareUrl}`,
+      className: "bg-danger-light text-danger",
+    },
+    {
+      label: "Outlook",
+      type: "external",
+      Icon: Mail,
+      url: `https://outlook.live.com/mail/0/deeplink/compose?subject=${encodedShareTitle}&body=${encodedShareText}%0A${encodedShareUrl}`,
+      className: "bg-info-light text-info",
+    },
+    {
+      label: "更多",
+      type: "native",
+      Icon: MoreHorizontal,
+      className: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-200",
+    },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
@@ -605,6 +734,22 @@ export default function NovelDetailPage() {
                     fill={isFavorited ? "currentColor" : "none"}
                   />
                   {isFavorited ? "已收藏" : "加入收藏"}
+                </button>
+
+                <button
+                  onClick={handleShareNovel}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 font-semibold transition-all
+                             border-neutral-300 text-neutral-700
+                             hover:bg-neutral-50 hover:-translate-y-0.5 hover:shadow-md
+                             dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                  aria-live="polite"
+                >
+                  {shareCopied ? (
+                    <Check className="w-5 h-5 text-success" />
+                  ) : (
+                    <Share2 className="w-5 h-5" />
+                  )}
+                  {shareCopied ? "已複製連結" : "分享"}
                 </button>
               </div>
             </div>
@@ -809,6 +954,151 @@ export default function NovelDetailPage() {
       </main>
 
       <Footer />
+
+      {/* ========== 分享 dialog ========== */}
+      {showShareDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center
+                     bg-neutral-950/60 backdrop-blur-sm
+                     sm:items-center sm:p-4"
+          onClick={() => setShowShareDialog(false)}
+        >
+          <div
+            className="w-full max-h-[92vh] overflow-y-auto rounded-t-2xl border p-5 shadow-2xl
+                       bg-white border-neutral-200
+                       sm:max-w-lg sm:rounded-2xl sm:p-6
+                       dark:bg-neutral-900 dark:border-neutral-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+                  分享作品
+                </h2>
+                <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+                  把這部小說推薦給朋友
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowShareDialog(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full transition-colors
+                           text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900
+                           dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-100"
+                aria-label="關閉分享視窗"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mb-5 flex gap-4 rounded-2xl border p-3
+                            border-neutral-200 bg-neutral-50
+                            dark:border-neutral-800 dark:bg-neutral-950">
+              <div className="h-20 w-16 flex-shrink-0 overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-800">
+                {isDefaultCover ? (
+                  <DefaultCover
+                    title={novel.title}
+                    author={novel.author}
+                    className="h-full w-full"
+                  />
+                ) : (
+                  <img
+                    src={novel.coverImage}
+                    alt={novel.title}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-2 font-semibold leading-snug text-neutral-900 dark:text-neutral-100">
+                  {novel.title}
+                </p>
+                <p className="mt-1 truncate text-sm text-neutral-500 dark:text-neutral-400">
+                  {novel.author}
+                  {novel.translator ? ` · 譯者 ${novel.translator}` : ""}
+                </p>
+                {novel.status && (
+                  <span
+                    className={`mt-2 inline-flex rounded px-2 py-1 text-xs font-medium ${
+                      novel.status === "completed"
+                        ? "bg-info-light text-info"
+                        : "bg-success-light text-success"
+                    }`}
+                  >
+                    {novel.status === "completed" ? "完結" : "連載"}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="border-y py-5 border-neutral-200 dark:border-neutral-800">
+              <p className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
+                分享
+              </p>
+              <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+                {shareTargets.map((target) => {
+                  const Icon = target.Icon;
+                  return (
+                    <button
+                      key={target.label}
+                      type="button"
+                      onClick={() => {
+                        if (target.type === "copy") {
+                          copyShareUrl(shareUrl);
+                          return;
+                        }
+                        if (target.type === "native") {
+                          handleNativeShare();
+                          return;
+                        }
+                        openShareTarget(target.url);
+                      }}
+                      className="group flex w-20 flex-shrink-0 flex-col items-center gap-2"
+                    >
+                      <span
+                        className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-bold transition-transform
+                                    group-hover:-translate-y-0.5 ${target.className}`}
+                      >
+                        {Icon ? <Icon className="h-6 w-6" /> : target.iconText}
+                      </span>
+                      <span className="w-full truncate text-center text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                        {target.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center gap-2 rounded-xl border p-2
+                            border-neutral-200 bg-neutral-50
+                            dark:border-neutral-800 dark:bg-neutral-950">
+              <input
+                readOnly
+                value={shareUrl}
+                className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm
+                           text-neutral-700 outline-none
+                           dark:text-neutral-200"
+                aria-label="分享連結"
+              />
+              <button
+                type="button"
+                onClick={() => copyShareUrl(shareUrl)}
+                className="inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors
+                           bg-neutral-900 text-white hover:bg-neutral-700
+                           dark:bg-neutral-100 dark:text-neutral-950 dark:hover:bg-neutral-300"
+              >
+                {shareCopied ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+                {shareCopied ? "已複製" : "複製"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========== 封面 lightbox ========== */}
       {showCoverLightbox && (
