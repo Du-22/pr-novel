@@ -59,7 +59,9 @@ export const saveUploadedNovel = (novelData) => {
 
 export const deleteUploadedNovel = (novelId) => {
   const existingNovels = getUploadedNovels();
-  const updatedNovels = existingNovels.filter((n) => n.id !== novelId);
+  const updatedNovels = existingNovels.filter(
+    (n) => n.id !== novelId && n.firestoreId !== novelId
+  );
   localStorage.setItem(UPLOADED_NOVELS_KEY, JSON.stringify(updatedNovels));
 };
 
@@ -140,15 +142,19 @@ export const syncNovelDeleteFromFirestore = async (firestoreId, userId) => {
  * 登入後從 Firestore 同步使用者小說到 localStorage（補齊跨裝置上傳的作品）
  */
 export const syncNovelsFromFirestore = async (userId) => {
-  if (!userId) return;
+  if (!userId) return getUploadedNovels();
 
   console.log("🔄 開始同步小說列表...");
   try {
     const firestoreNovels = await getUserNovels(userId);
     const localNovels = getUploadedNovels();
 
+    const firestoreIds = new Set(firestoreNovels.map((n) => n.id));
+    const activeLocalNovels = localNovels.filter(
+      (n) => !n.firestoreId || firestoreIds.has(n.firestoreId)
+    );
     const localFirestoreIds = new Set(
-      localNovels.map((n) => n.firestoreId).filter(Boolean)
+      activeLocalNovels.map((n) => n.firestoreId).filter(Boolean)
     );
 
     // 找出 Firestore 有但 localStorage 沒有的（例如其他裝置上傳的）
@@ -172,13 +178,20 @@ export const syncNovelsFromFirestore = async (userId) => {
         isTemp: false,
       }));
 
-      const merged = [...localNovels, ...newLocalNovels];
+      const merged = [...activeLocalNovels, ...newLocalNovels];
       localStorage.setItem(UPLOADED_NOVELS_KEY, JSON.stringify(merged));
       console.log(`✅ 從 Firestore 同步了 ${novelsToAdd.length} 本小說`);
+      return merged;
     } else {
+      localStorage.setItem(
+        UPLOADED_NOVELS_KEY,
+        JSON.stringify(activeLocalNovels)
+      );
       console.log("✅ 小說列表已是最新");
+      return activeLocalNovels;
     }
   } catch (error) {
     console.error("❌ 同步小說列表失敗:", error);
+    return getUploadedNovels();
   }
 };

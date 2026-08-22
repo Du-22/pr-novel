@@ -11,6 +11,7 @@ import ConfirmDialog from "../ConfirmDialog";
 import DefaultCover from "../DefaultCover";
 import { useAuth } from "../../hooks/useAuth";
 import { getUserNovels, deleteNovel } from "../../firebase/novels";
+import { deleteUploadedNovel } from "../../utils/uploadedNovelsManager";
 import { refreshNovels } from "../../utils/novelsHelper";
 import { ProfileListSkeleton } from "../Skeleton";
 
@@ -55,6 +56,7 @@ export default function MyWorks() {
     if (!novelToDelete) return;
     try {
       await deleteNovel(novelToDelete.id, user.uid);
+      deleteUploadedNovel(novelToDelete.id);
       setNovels(novels.filter((n) => n.id !== novelToDelete.id));
       await refreshNovels();
     } catch (error) {
