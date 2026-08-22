@@ -15,6 +15,7 @@ import {
   getUploadedNovels,
   deleteUploadedNovel,
   syncNovelDeleteFromFirestore,
+  syncNovelsFromFirestore,
 } from "../utils/uploadedNovelsManager";
 import { useAuth } from "../hooks/useAuth";
 import { refreshNovels } from "../utils/novelsHelper";
@@ -29,12 +30,23 @@ export default function MyUploadsPage() {
   const [novelToDelete, setNovelToDelete] = useState(null);
 
   useEffect(() => {
-    const uploadedNovels = getUploadedNovels();
-    const sorted = uploadedNovels.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-    setNovels(sorted);
-  }, []);
+    let isActive = true;
+
+    const loadNovels = async () => {
+      const uploadedNovels = user
+        ? await syncNovelsFromFirestore(user.uid)
+        : getUploadedNovels();
+      const sorted = [...uploadedNovels].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      if (isActive) setNovels(sorted);
+    };
+
+    loadNovels();
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
 
   const handleDeleteClick = (novel) => {
     setNovelToDelete(novel);
