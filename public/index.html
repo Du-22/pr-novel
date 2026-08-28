@@ -8,6 +8,7 @@
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/favicon-180x180.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#6C5CE7" />
+    <meta name="robots" content="index, follow" />
 
     <!-- Google Fonts: Noto Sans TC/SC (UI 黑體) + Noto Serif TC/SC (內文宋體) + Plus Jakarta Sans (英文 fallback)
          SC 為 fallback,只在 SC 字符出現時透過 unicode-range 機制自動下載對應 subset -->
@@ -38,8 +39,59 @@
     </script>
     <meta
       name="description"
-      content="PR小說網 — 探索精彩故事，分享閱讀樂趣"
+      content="PR小說網是提供原創小說閱讀、作品分享與讀者交流的繁體中文小說平台。"
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:site_name" content="PR小說網" />
+    <meta property="og:title" content="PR小說網｜原創小說閱讀與創作平台" />
+    <meta
+      property="og:description"
+      content="PR小說網是提供原創小說閱讀、作品分享與讀者交流的繁體中文小說平台。"
+    />
+    <meta property="og:url" content="https://pr-novel.vercel.app/" />
+    <meta
+      property="og:image"
+      content="https://pr-novel.vercel.app/favicon-180x180.png"
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="PR小說網｜原創小說閱讀與創作平台" />
+    <meta
+      name="twitter:description"
+      content="PR小說網是提供原創小說閱讀、作品分享與讀者交流的繁體中文小說平台。"
+    />
+    <meta
+      name="twitter:image"
+      content="https://pr-novel.vercel.app/favicon-180x180.png"
+    />
+    <script id="site-structured-data" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://pr-novel.vercel.app/#website",
+            "url": "https://pr-novel.vercel.app/",
+            "name": "PR小說網",
+            "description": "PR小說網是提供原創小說閱讀、作品分享與讀者交流的繁體中文小說平台。",
+            "inLanguage": "zh-TW",
+            "publisher": {
+              "@id": "https://pr-novel.vercel.app/#organization"
+            }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://pr-novel.vercel.app/#organization",
+            "name": "PR小說網",
+            "url": "https://pr-novel.vercel.app/",
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://pr-novel.vercel.app/favicon-180x180.png"
+            }
+          }
+        ]
+      }
+    </script>
     <!--
       manifest.json provides metadata used when your web app is installed on a
       user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
@@ -54,7 +106,7 @@
       work correctly both with client-side routing and a non-root public URL.
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
-    <title>PR小說網</title>
+    <title>PR小說網｜原創小說閱讀與創作平台</title>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

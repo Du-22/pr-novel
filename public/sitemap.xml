@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  檔案名稱: sitemap.xml
+  路徑: public/sitemap.xml
+  用途: 提供 Phase 1 可索引公開頁面給搜尋引擎
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://pr-novel.vercel.app/</loc>
+  </url>
+  <url>
+    <loc>https://pr-novel.vercel.app/tags</loc>
+  </url>
+  <url>
+    <loc>https://pr-novel.vercel.app/ranking/views</loc>
+  </url>
+  <url>
+    <loc>https://pr-novel.vercel.app/ranking/favorites</loc>
+  </url>
+  <url>
+    <loc>https://pr-novel.vercel.app/ranking/new</loc>
+  </url>
+</urlset>
