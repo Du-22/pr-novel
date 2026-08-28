@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
   "rewrites": [
     { "source": "/novel/:id/read/:vol/:ch", "destination": "/index.html" },
     { "source": "/novel/:id/read/:chapter", "destination": "/index.html" },
