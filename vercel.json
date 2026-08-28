@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/novel/:id/read/:vol/:ch", "destination": "/index.html" },
+    { "source": "/novel/:id/read/:chapter", "destination": "/index.html" },
+    { "source": "/novel/:id", "destination": "/index.html" },
+    { "source": "/ranking", "destination": "/index.html" },
+    { "source": "/ranking/views", "destination": "/index.html" },
+    { "source": "/ranking/favorites", "destination": "/index.html" },
+    { "source": "/ranking/new", "destination": "/index.html" },
+    { "source": "/tags", "destination": "/index.html" },
+    { "source": "/upload", "destination": "/index.html" },
+    { "source": "/my-uploads", "destination": "/index.html" },
+    { "source": "/my-uploads/edit/:id", "destination": "/index.html" },
+    { "source": "/my-uploads/edit/:id/chapter/:chapterNumber", "destination": "/index.html" },
+    { "source": "/my-uploads/edit/:id/v/:vol/chapter/:ch", "destination": "/index.html" },
+    { "source": "/profile", "destination": "/index.html" },
+    { "source": "/profile/favorites", "destination": "/index.html" },
+    { "source": "/profile/works", "destination": "/index.html" },
+    { "source": "/profile/history", "destination": "/index.html" },
+    { "source": "/search", "destination": "/index.html" },
+    { "source": "/notifications", "destination": "/index.html" },
+    { "source": "/user/:uid", "destination": "/index.html" },
+    { "source": "/auth", "destination": "/index.html" },
+    { "source": "/admin", "destination": "/index.html" }
+  ]
+}

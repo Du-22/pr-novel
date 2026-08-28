@@ -1,0 +1,10 @@
+# ============================================
+# 檔案名稱: robots.txt
+# 路徑: public/robots.txt
+# 用途: 允許搜尋引擎抓取公開內容，並告知 sitemap 位置
+# ============================================
+
+User-agent: *
+Allow: /
+
+Sitemap: https://pr-novel.vercel.app/sitemap.xml

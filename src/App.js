@@ -1,8 +1,15 @@
+// ============================================
+// 檔案名稱: App.js
+// 路徑: src/App.js
+// 用途: 全站路由、小說資料初始化與路由層級 SEO 管理
+// ============================================
+
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { loadAllNovels } from "./utils/novelsHelper";
 import ScrollToTop from "./components/ScrollToTop";
+import SeoManager from "./components/SeoManager";
 import Logo from "./components/Logo";
 import HomePage from "./pages/HomePage";
 import NovelDetailPage from "./pages/NovelDetailPage";
@@ -21,32 +28,30 @@ import UserProfilePage from "./pages/UserProfilePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import AdminPage from "./pages/AdminPage";
 
-function App() {
+function AppContent() {
   const [novelsReady, setNovelsReady] = useState(false);
 
   useEffect(() => {
     loadAllNovels().then(() => setNovelsReady(true));
   }, []);
 
-  if (!novelsReady) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4
-                      bg-neutral-50 dark:bg-neutral-950">
-        <Logo className="w-12 h-12 text-primary dark:text-primary-light" />
-        <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          載入中...
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <Router>
+    <>
+      <SeoManager />
       <ScrollToTop /> {/* 跳轉頁面時滾動到頂部 */}
-      <Routes>
-        {/* 首頁 */}
-        <Route path="/" element={<HomePage />} />
+      {!novelsReady ? (
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4
+                        bg-neutral-50 dark:bg-neutral-950">
+          <Logo className="w-12 h-12 text-primary dark:text-primary-light" />
+          <div className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            載入中...
+          </div>
+        </div>
+      ) : (
+        <Routes>
+          {/* 首頁 */}
+          <Route path="/" element={<HomePage />} />
 
         {/* 小說詳情頁 */}
         <Route path="/novel/:id" element={<NovelDetailPage />} />
@@ -95,9 +100,18 @@ function App() {
         {/* 管理員後台 */}
         <Route path="/admin" element={<AdminPage />} />
 
-        {/* 404頁面 */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          {/* 404頁面 */}
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      )}
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
