@@ -12,6 +12,7 @@ export default function ConfirmDialog({
   message,
   confirmText = "確定",
   cancelText = "取消",
+  confirmVariant = "danger",
   onConfirm,
   onCancel,
 }) {
@@ -46,8 +47,9 @@ export default function ConfirmDialog({
           </button>
           <button
             onClick={onConfirm}
-            className="px-5 py-2.5 rounded-lg font-medium transition-colors
-                       bg-danger text-white hover:opacity-90"
+            className={`px-5 py-2.5 rounded-lg font-medium text-white transition-colors hover:opacity-90 ${
+              confirmVariant === "primary" ? "bg-primary" : "bg-danger"
+            }`}
           >
             {confirmText}
           </button>

@@ -1,7 +1,7 @@
 // ============================================
 // 檔案名稱: AdminPage.js
 // 路徑: src/pages/AdminPage.js
-// 用途: 管理員後台 — 檢舉列表 + 刪除留言 + 忽略檢舉
+// 用途: 管理員後台 — 檢舉處理與小說顯示狀態管理
 // ============================================
 
 import React, { useState, useEffect } from "react";
@@ -15,6 +15,7 @@ import { getReports, updateReportStatus, REPORT_REASON_LABELS } from "../firebas
 import { createNotification } from "../firebase/notifications";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import NovelVisibilityManager from "../components/admin/NovelVisibilityManager";
 
 function formatDate(timestamp) {
   if (!timestamp) return "";
@@ -46,6 +47,7 @@ export default function AdminPage() {
   const [reports, setReports] = useState([]);
   const [fetching, setFetching] = useState(true);
   const [filter, setFilter] = useState("pending");
+  const [section, setSection] = useState("reports");
   const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
@@ -152,6 +154,13 @@ export default function AdminPage() {
         : "bg-neutral-100 text-neutral-700 hover:bg-neutral-200 hover:text-neutral-900 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:hover:text-neutral-100"
     }`;
 
+  const sectionBtnClass = (key) =>
+    `min-h-11 flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+      section === key
+        ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-700 dark:text-neutral-100"
+        : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+    }`;
+
   return (
     <div className="min-h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950">
       <Navbar />
@@ -164,20 +173,33 @@ export default function AdminPage() {
               管理員後台
             </h1>
             <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
-              共 {reports.length} 筆檢舉,{pendingCount} 筆待處理
+              管理檢舉案件與小說顯示狀態
             </p>
           </div>
-          <button
-            onClick={loadReports}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg border transition-colors
-                       text-neutral-700 border-neutral-200 hover:bg-neutral-100
-                       dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800"
-          >
-            <RefreshCw className="w-4 h-4" />
-            重新整理
+          {section === "reports" && (
+            <button
+              onClick={loadReports}
+              className="inline-flex min-h-11 items-center gap-1.5 px-4 py-2 text-sm rounded-lg border transition-colors
+                         text-neutral-700 border-neutral-200 hover:bg-neutral-100
+                         dark:text-neutral-300 dark:border-neutral-800 dark:hover:bg-neutral-800"
+            >
+              <RefreshCw className="w-4 h-4" />
+              重新整理
+            </button>
+          )}
+        </div>
+
+        <div className="mb-6 flex rounded-xl bg-neutral-100 p-1 dark:bg-neutral-800" role="tablist" aria-label="管理項目">
+          <button type="button" role="tab" aria-selected={section === "reports"} onClick={() => setSection("reports")} className={sectionBtnClass("reports")}>
+            檢舉管理
+          </button>
+          <button type="button" role="tab" aria-selected={section === "novels"} onClick={() => setSection("novels")} className={sectionBtnClass("novels")}>
+            小說管理
           </button>
         </div>
 
+        {section === "reports" ? (
+          <>
         {/* 篩選 */}
         <div className="flex gap-2 mb-6">
           <button onClick={() => setFilter("pending")} className={filterBtnClass("pending")}>
@@ -305,6 +327,10 @@ export default function AdminPage() {
               );
             })}
           </div>
+        )}
+          </>
+        ) : (
+          <NovelVisibilityManager userId={user.uid} />
         )}
       </main>
 

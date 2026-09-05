@@ -8,6 +8,7 @@ import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { loadAllNovels } from "./utils/novelsHelper";
+import { useAuth } from "./hooks/useAuth";
 import ScrollToTop from "./components/ScrollToTop";
 import SeoManager from "./components/SeoManager";
 import Logo from "./components/Logo";
@@ -30,10 +31,13 @@ import AdminPage from "./pages/AdminPage";
 
 function AppContent() {
   const [novelsReady, setNovelsReady] = useState(false);
+  const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    loadAllNovels().then(() => setNovelsReady(true));
-  }, []);
+    if (authLoading) return;
+    setNovelsReady(false);
+    loadAllNovels(user?.uid).then(() => setNovelsReady(true));
+  }, [authLoading, user?.uid]);
 
   return (
     <>

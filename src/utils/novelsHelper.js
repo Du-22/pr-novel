@@ -13,9 +13,9 @@ let _loaded = false;
  * 從 Firestore 載入所有小說並填入快取
  * 在 App.js 啟動時呼叫一次
  */
-export const loadAllNovels = async () => {
+export const loadAllNovels = async (userId = null) => {
   try {
-    const novels = await fetchAllFromFirestore();
+    const novels = await fetchAllFromFirestore(userId);
     _cache = novels;
     _loaded = true;
   } catch (error) {
@@ -26,9 +26,9 @@ export const loadAllNovels = async () => {
 /**
  * 重新整理快取（上傳/刪除/編輯後呼叫）
  */
-export const refreshNovels = async () => {
+export const refreshNovels = async (userId = null) => {
   _loaded = false;
-  await loadAllNovels();
+  await loadAllNovels(userId);
 };
 
 /**
