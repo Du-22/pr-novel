@@ -13,7 +13,8 @@ import {
   serverTimestamp,
   increment,
 } from "firebase/firestore";
-import { db } from "./config";
+import { auth, db } from "./config";
+import { ADMIN_UID } from "../config/adminConfig";
 import {
   deleteAllChaptersOfNovel,
   deleteCoverImage,
@@ -35,6 +36,7 @@ export const uploadNovelToFirestore = async (novelData, userId) => {
       authorUid: userId,
       uploaderName: novelData.uploaderName || "",
       isOfficial: false,
+      isHidden: false,
       createdAt: serverTimestamp(),
       stats: { views: 0, favorites: 0 },
     };
@@ -73,19 +75,62 @@ export const getNovelById = async (novelId) => {
 };
 
 // ========== 取得所有小說 ==========
-export const getAllNovels = async () => {
-  const querySnapshot = await getDocs(collection(db, "novels"));
+export const getAllNovels = async (userId = auth.currentUser?.uid || null) => {
+  const novelsRef = collection(db, "novels");
+  const novelsQuery = userId === ADMIN_UID
+    ? novelsRef
+    : query(novelsRef, where("isHidden", "==", false));
+  const querySnapshot = await getDocs(novelsQuery);
   return querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
   }));
 };
 
+// ========== 管理員隱藏狀態管理 ==========
+export const setNovelHiddenState = async (novelId, isHidden, userId) => {
+  if (userId !== ADMIN_UID) {
+    throw new Error("只有管理員可以變更小說隱藏狀態");
+  }
+
+  await updateDoc(doc(db, "novels", novelId), {
+    isHidden,
+    hiddenAt: isHidden ? serverTimestamp() : null,
+    hiddenBy: isHidden ? userId : null,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+/**
+ * 為舊小說補上 isHidden: false。
+ * Firestore 安全查詢需要明確欄位；部署新規則後由管理員後台自動執行一次。
+ */
+export const backfillNovelVisibility = async (userId) => {
+  if (userId !== ADMIN_UID) {
+    throw new Error("只有管理員可以執行小說狀態遷移");
+  }
+
+  const snapshot = await getDocs(collection(db, "novels"));
+  const missingDocs = snapshot.docs.filter((item) => item.data().isHidden == null);
+  const BATCH_SIZE = 499;
+
+  for (let i = 0; i < missingDocs.length; i += BATCH_SIZE) {
+    const batch = writeBatch(db);
+    missingDocs.slice(i, i + BATCH_SIZE).forEach((item) => {
+      batch.update(item.ref, { isHidden: false });
+    });
+    await batch.commit();
+  }
+
+  return missingDocs.length;
+};
+
 // ========== 取得使用者的小說 ==========
 export const getUserNovels = async (userId) => {
   const q = query(
     collection(db, "novels"),
-    where("authorUid", "==", userId)
+    where("authorUid", "==", userId),
+    where("isHidden", "==", false)
   );
 
   const querySnapshot = await getDocs(q);
@@ -112,6 +157,7 @@ export const getOfficialNovels = async () => {
   const q = query(
     collection(db, "novels"),
     where("isOfficial", "==", true),
+    where("isHidden", "==", false),
     orderBy("createdAt", "desc")
   );
 

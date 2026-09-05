@@ -80,11 +80,9 @@ export const uploadChapterContent = async (novelId, chapterNumber, content) => {
  */
 export const fetchChapterContent = async (url) => {
   if (!url) return "";
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`讀取章節內文失敗: ${res.status}`);
-  }
-  return await res.text();
+  const storageRef = ref(storage, url);
+  const bytes = await getBytes(storageRef);
+  return new TextDecoder("utf-8").decode(bytes);
 };
 
 /**

@@ -22,6 +22,11 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == "gFwOsNadC9MoPzPdrn85H09AtVt2";
     }
 
+    function canReadNovel(novelId) {
+      return isAdmin()
+             || get(/databases/$(database)/documents/novels/$(novelId)).data.get('isHidden', false) == false;
+    }
+
 
     // ========== 收藏 (favorites) ==========
     match /favorites/{userId}/novels/{novelId} {
@@ -46,14 +51,25 @@ service cloud.firestore {
 
     // ========== 小說 (novels) ==========
     match /novels/{novelId} {
-      allow read: if true;
+      allow read: if isAdmin()
+                  || resource.data.get('isHidden', false) == false;
 
       allow create: if isSignedIn()
-                    && request.resource.data.authorUid == request.auth.uid;
+                    && request.resource.data.authorUid == request.auth.uid
+                    && request.resource.data.isHidden == false;
 
-      // 作者可更新所有欄位；任何人（含未登入）可更新 stats（閱讀數/收藏數）
-      allow update: if (isSignedIn() && resource.data.authorUid == request.auth.uid)
-                    || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']);
+      // 管理員可切換隱藏狀態；作者只能編輯未隱藏小說且不能變更管理欄位。
+      // 公開 stats 仍可由任何人更新，但隱藏小說不接受公開寫入。
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && resource.data.authorUid == request.auth.uid
+                        && resource.data.get('isHidden', false) == false
+                        && request.resource.data.isHidden == false
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                          .hasAny(['isHidden', 'hiddenAt', 'hiddenBy']))
+                    || (resource.data.get('isHidden', false) == false
+                        && request.resource.data.isHidden == false
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stats']));
 
       allow delete: if isSignedIn()
                     && resource.data.authorUid == request.auth.uid
@@ -62,49 +78,52 @@ service cloud.firestore {
 
     // ========== 章節子集合 (novels/{novelId}/chapters) ==========
     match /novels/{novelId}/chapters/{chapterNumber} {
-      allow read: if true;
+      allow read: if canReadNovel(novelId);
 
       allow write: if isSignedIn()
-                   && get(/databases/$(database)/documents/novels/$(novelId)).data.authorUid == request.auth.uid;
+                   && get(/databases/$(database)/documents/novels/$(novelId)).data.authorUid == request.auth.uid
+                   && get(/databases/$(database)/documents/novels/$(novelId)).data.get('isHidden', false) == false;
     }
 
 
     // ========== 評分 (ratings) ==========
     // 評分統計文件（ratingSum, ratingCount）
     match /ratings/{novelId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read: if canReadNovel(novelId);
+      allow write: if isSignedIn() && canReadNovel(novelId);
     }
 
     // 個人評分記錄
     match /ratings/{novelId}/users/{userId} {
-      allow read: if isSignedIn();
-      allow write: if isOwner(userId);
+      allow read: if isSignedIn() && canReadNovel(novelId);
+      allow write: if isOwner(userId) && canReadNovel(novelId);
     }
 
 
     // ========== 評論 (comments) ==========
     // 計數器文件（記錄每本小說的 topLevelCount）
     match /comments/{novelId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read: if canReadNovel(novelId);
+      allow write: if isSignedIn() && canReadNovel(novelId);
     }
 
     // 留言與回覆
     match /comments/{novelId}/items/{commentId} {
-      allow read: if true;
+      allow read: if canReadNovel(novelId);
 
       allow create: if isSignedIn()
+                    && canReadNovel(novelId)
                     && request.resource.data.authorUid == request.auth.uid;
 
       // 本人可更新所有欄位；任何登入者可更新 replyCount 和 likedBy（transaction / 按讚）
-      allow update: if isSignedIn() && (
+      allow update: if isSignedIn() && canReadNovel(novelId) && (
         resource.data.authorUid == request.auth.uid ||
         isAdmin() ||
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount', 'likedBy'])
       );
 
       allow delete: if isSignedIn()
+                    && canReadNovel(novelId)
                     && (resource.data.authorUid == request.auth.uid || isAdmin());
     }
 
